@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
+import { QueueService } from "../../jobs/queue.service";
+import { EventsService } from "../events/events.service";
 import type {
   Address,
   LabelDto,
@@ -46,7 +48,11 @@ type ThreadWithLabels = Prisma.ThreadGetPayload<{
 
 @Injectable()
 export class ThreadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly queues: QueueService,
+    private readonly events: EventsService,
+  ) {}
 
   /** Where-clause for a sidebar view, scoped to the user's accounts. */
   private viewWhere(
@@ -218,7 +224,41 @@ export class ThreadsService {
         data: { isRead: patch.isRead },
       });
     }
-    // Phase 4: enqueue sync:writeback to mirror this change to the provider.
+
+    // Snooze wake-ups are delayed jobs; re-snoozing replaces the old job.
+    if (patch.snoozedUntil !== undefined) {
+      await this.queues.cancel("snooze", `snooze-${threadId}`);
+      if (patch.snoozedUntil !== null) {
+        await this.queues.enqueue(
+          "snooze",
+          { kind: "wake", threadId, userId },
+          {
+            delayMs: Math.max(
+              new Date(patch.snoozedUntil).getTime() - Date.now(),
+              0,
+            ),
+            jobId: `snooze-${threadId}`,
+          },
+        );
+      }
+    }
+
+    // Mirror to the provider asynchronously; UI already moved on.
+    await this.queues.enqueue("sync", {
+      kind: "writeback",
+      accountId: updated.accountId,
+      threadId,
+      action: {
+        isRead: patch.isRead,
+        isStarred: patch.isStarred,
+        folder: patch.folder,
+        snoozedUntil: patch.snoozedUntil,
+      },
+    });
+    await this.events.publish(userId, {
+      type: "mail.updated",
+      threadIds: [threadId],
+    });
     return this.toListItem(updated);
   }
 

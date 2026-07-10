@@ -6,6 +6,7 @@
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
+    "worker": "node dist/worker.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "jest"
   },
@@ -15,6 +16,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@novamail/shared": "workspace:*",
     "@prisma/client": "^6.5.0",
+    "bullmq": "^5.80.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",
     "ioredis": "^5.4.0",
@@ -28,6 +30,7 @@
     "@novamail/config": "workspace:*",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.10.0",
     "prisma": "^6.5.0",
     "typescript": "^5.7.0"

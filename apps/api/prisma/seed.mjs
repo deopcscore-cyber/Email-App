@@ -81,6 +81,19 @@ async function main() {
     },
   });
 
+  // Contacts power recipient autocomplete, ranked by interactions.
+  for (const [i, person] of Object.values(people).entries()) {
+    await prisma.contact.create({
+      data: {
+        accountId: account.id,
+        email: person.email,
+        name: person.name,
+        interactions: 20 - i,
+        lastInteracted: new Date(now),
+      },
+    });
+  }
+
   const labelDefs = [
     ["Work", "#6E56CF"],
     ["Personal", "#3B82F6"],

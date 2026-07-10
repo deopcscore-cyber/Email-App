@@ -18,11 +18,11 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { MailView } from "@novamail/shared";
 import { useSession } from "@/features/auth/use-session";
+import { useCompose } from "@/features/compose/compose-context";
 import { useLabels } from "@/features/labels/use-labels";
 import {
   useThreadCounts,
 } from "@/features/mail-list/hooks/use-threads";
-import { useUi } from "@/contexts/ui-context";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -49,7 +49,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const { data: user } = useSession();
   const { data: counts } = useThreadCounts();
   const { data: labels } = useLabels();
-  const { setComposeOpen } = useUi();
+  const { openNew } = useCompose();
 
   return (
     <nav
@@ -78,7 +78,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       {/* Compose */}
       <button
         type="button"
-        onClick={() => setComposeOpen(true)}
+        onClick={() => openNew()}
         className={cn(
           "mb-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#7C5CFC] to-[#5A3FE0] text-sm font-medium text-white",
           "shadow-[0_4px_16px_-4px_rgba(124,92,252,0.5)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]",

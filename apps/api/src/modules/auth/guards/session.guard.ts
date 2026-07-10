@@ -4,7 +4,9 @@ import {
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
-import { SESSION_COOKIE } from "@novamail/shared";
+import { randomBytes } from "node:crypto";
+import type { Response } from "express";
+import { CSRF_COOKIE, SESSION_COOKIE } from "@novamail/shared";
 import type { AuthenticatedRequest } from "../../../common/decorators/current-user.decorator";
 import { SessionService } from "../session.service";
 
@@ -15,9 +17,8 @@ export class SessionGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const token = (req.cookies as Record<string, string | undefined>)[
-      SESSION_COOKIE
-    ];
+    const cookies = req.cookies as Record<string, string | undefined>;
+    const token = cookies[SESSION_COOKIE];
     if (token === undefined) {
       throw new UnauthorizedException("Not signed in");
     }
@@ -26,6 +27,18 @@ export class SessionGuard implements CanActivate {
       throw new UnauthorizedException("Session expired");
     }
     req.user = { id: record.userId, sessionId: record.sessionId };
+
+    // Self-heal the CSRF double-submit cookie (e.g. sessions restored from
+    // storage, dev seed sessions) so mutations don't 403 mysteriously.
+    if (cookies[CSRF_COOKIE] === undefined) {
+      const res = context.switchToHttp().getResponse<Response>();
+      res.cookie(CSRF_COOKIE, randomBytes(16).toString("base64url"), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+      });
+    }
     return true;
   }
 }

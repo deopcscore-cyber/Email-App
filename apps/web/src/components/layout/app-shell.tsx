@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
+import { Toaster } from "sonner";
+import { useTheme } from "next-themes";
 import { useUi } from "@/contexts/ui-context";
 import { AiPanel } from "@/features/ai/components/ai-panel";
+import { useCompose } from "@/features/compose/compose-context";
 import { ComposeModal } from "@/features/compose/components/compose-modal";
 import { CommandPalette } from "@/features/search/command-palette";
 import { ShortcutsHelpModal } from "@/features/shortcuts/shortcuts-help-modal";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
+import { useMailEvents } from "@/hooks/use-mail-events";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Sidebar } from "./sidebar";
 
@@ -19,16 +23,14 @@ import { Sidebar } from "./sidebar";
  *           <768px: single column (list ↔ thread swap, handled by MailPage)
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const {
-    toggleAiPanel,
-    setAiPanelOpen,
-    setPaletteOpen,
-    setHelpOpen,
-    setComposeOpen,
-  } = useUi();
+  const { toggleAiPanel, setAiPanelOpen, setPaletteOpen, setHelpOpen } = useUi();
+  const { openNew } = useCompose();
+  const { resolvedTheme } = useTheme();
   const isTablet = useMediaQuery("(max-width: 1279px)");
   const isMobile = useMediaQuery("(max-width: 767px)");
   const isDesktop = useMediaQuery("(min-width: 1280px)");
+
+  useMailEvents();
 
   // AI panel is a persistent column on desktop, an on-demand overlay below.
   useEffect(() => {
@@ -43,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     scope: "mail",
     description: "Search",
   });
-  useShortcut("c", () => setComposeOpen(true), {
+  useShortcut("c", () => openNew(), {
     scope: "mail",
     description: "Compose",
   });
@@ -69,6 +71,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <CommandPalette />
       <ComposeModal />
       <ShortcutsHelpModal />
+      <Toaster
+        position="bottom-center"
+        theme={resolvedTheme === "dark" ? "dark" : "light"}
+        toastOptions={{
+          style: { borderRadius: "0.75rem" },
+        }}
+      />
     </div>
   );
 }

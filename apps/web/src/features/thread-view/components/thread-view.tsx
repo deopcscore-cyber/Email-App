@@ -5,16 +5,22 @@ import {
   Archive,
   ArrowLeft,
   Clock,
+  Forward,
   MailOpen,
   Reply,
+  ReplyAll,
   Sparkles,
   Star,
   Trash2,
 } from "lucide-react";
+import { useState } from "react";
 import { useUi } from "@/contexts/ui-context";
+import { useCompose } from "@/features/compose/compose-context";
 import { useMailSelection } from "@/features/mail-list/hooks/use-mail-selection";
 import { useTriageThread } from "@/features/mail-list/hooks/use-threads";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
+import { SnoozePopover } from "@/features/snooze/snooze-popover";
+import { displayName } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useMarkReadOnOpen, useThread } from "../hooks/use-thread";
 import { MessageCard } from "./message-card";
@@ -23,12 +29,10 @@ function ToolbarButton({
   label,
   onClick,
   children,
-  disabled,
 }: {
   label: string;
   onClick?: () => void;
   children: React.ReactNode;
-  disabled?: boolean;
 }) {
   return (
     <button
@@ -36,8 +40,7 @@ function ToolbarButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      disabled={disabled}
-      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground disabled:opacity-40"
+      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
     >
       {children}
     </button>
@@ -49,11 +52,15 @@ export function ThreadView() {
   const { data: thread, isPending } = useThread(selectedId);
   const triage = useTriageThread();
   const { toggleAiPanel } = useUi();
+  const { openFromThread } = useCompose();
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
   useMarkReadOnOpen(selectedId, thread?.unreadCount);
+
+  const hasThread = selectedId !== null && thread !== undefined;
 
   useShortcut("escape", () => close(), {
     description: "Back to list",
-    enabled: selectedId !== null,
+    enabled: selectedId !== null && !snoozeOpen,
   });
   useShortcut(
     "e",
@@ -85,6 +92,22 @@ export function ThreadView() {
     },
     { description: "Mark unread", enabled: selectedId !== null },
   );
+  useShortcut("r", () => hasThread && openFromThread(thread, "reply"), {
+    description: "Reply",
+    enabled: hasThread,
+  });
+  useShortcut("a", () => hasThread && openFromThread(thread, "replyAll"), {
+    description: "Reply all",
+    enabled: hasThread,
+  });
+  useShortcut("f", () => hasThread && openFromThread(thread, "forward"), {
+    description: "Forward",
+    enabled: hasThread,
+  });
+  useShortcut("h", () => setSnoozeOpen(true), {
+    description: "Snooze",
+    enabled: selectedId !== null,
+  });
 
   if (selectedId === null) {
     return (
@@ -135,9 +158,17 @@ export function ThreadView() {
         >
           <Trash2 className="size-4" aria-hidden />
         </ToolbarButton>
-        <ToolbarButton label="Snooze — arrives in Phase 4" disabled>
-          <Clock className="size-4" aria-hidden />
-        </ToolbarButton>
+        <div className="relative">
+          <ToolbarButton label="Snooze (h)" onClick={() => setSnoozeOpen(true)}>
+            <Clock className="size-4" aria-hidden />
+          </ToolbarButton>
+          <SnoozePopover
+            threadId={selectedId}
+            open={snoozeOpen}
+            onClose={() => setSnoozeOpen(false)}
+            onSnoozed={close}
+          />
+        </div>
         <ToolbarButton
           label={thread?.isStarred === true ? "Unstar (s)" : "Star (s)"}
           onClick={() =>
@@ -155,6 +186,25 @@ export function ThreadView() {
             )}
             aria-hidden
           />
+        </ToolbarButton>
+        <div className="mx-1 h-4 w-px bg-border" aria-hidden />
+        <ToolbarButton
+          label="Reply (r)"
+          onClick={() => hasThread && openFromThread(thread, "reply")}
+        >
+          <Reply className="size-4" aria-hidden />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Reply all (a)"
+          onClick={() => hasThread && openFromThread(thread, "replyAll")}
+        >
+          <ReplyAll className="size-4" aria-hidden />
+        </ToolbarButton>
+        <ToolbarButton
+          label="Forward (f)"
+          onClick={() => hasThread && openFromThread(thread, "forward")}
+        >
+          <Forward className="size-4" aria-hidden />
         </ToolbarButton>
         <button
           type="button"
@@ -200,27 +250,35 @@ export function ThreadView() {
             </div>
 
             <div className="flex flex-col gap-3">
-              {thread.messages.map((message, i) => (
-                <MessageCard
-                  key={message.id}
-                  message={message}
-                  defaultExpanded={
-                    i === thread.messages.length - 1 || !message.isRead
-                  }
-                />
-              ))}
+              {thread.messages
+                .filter((m) => m.bodyHtml !== null || m.bodyText !== null)
+                .map((message, i, visible) => (
+                  <MessageCard
+                    key={message.id}
+                    message={message}
+                    defaultExpanded={i === visible.length - 1 || !message.isRead}
+                  />
+                ))}
             </div>
 
-            {/* Quick reply (wired in Phase 4) */}
-            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
+            {/* Quick reply */}
+            <button
+              type="button"
+              onClick={() => openFromThread(thread, "reply")}
+              className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-left transition-colors hover:border-accent/40"
+            >
               <Reply className="size-4 text-muted-foreground" aria-hidden />
-              <input
-                type="text"
-                placeholder={`Reply to ${thread.participants[0]?.name ?? "sender"}… (arrives in Phase 4)`}
-                disabled
-                className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
-              />
-            </div>
+              <span className="flex-1 text-[13px] text-muted-foreground">
+                Reply to{" "}
+                {thread.participants[0] !== undefined
+                  ? displayName(thread.participants[0])
+                  : "sender"}
+                …
+              </span>
+              <kbd className="rounded border border-border px-1.5 text-[10px] text-muted-foreground">
+                r
+              </kbd>
+            </button>
           </motion.div>
         )}
       </div>

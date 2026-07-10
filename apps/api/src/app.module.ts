@@ -5,7 +5,12 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CsrfGuard } from "./modules/auth/guards/csrf.guard";
+import { ContactsModule } from "./modules/contacts/contacts.module";
+import { EventsModule } from "./modules/events/events.module";
 import { LabelsModule } from "./modules/labels/labels.module";
+import { MessagesModule } from "./modules/messages/messages.module";
+import { SearchModule } from "./modules/search/search.module";
+import { SyncModule } from "./modules/sync/sync.module";
 import { ThreadsModule } from "./modules/threads/threads.module";
 import { UsersModule } from "./modules/users/users.module";
 
@@ -14,10 +19,15 @@ import { UsersModule } from "./modules/users/users.module";
     ConfigModule,
     PrismaModule,
     RedisModule,
+    EventsModule,
+    SyncModule,
     AuthModule,
     UsersModule,
     ThreadsModule,
     LabelsModule,
+    MessagesModule,
+    SearchModule,
+    ContactsModule,
   ],
   providers: [
     // CSRF applies globally to every mutating route; safe methods pass.

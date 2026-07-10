@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { UiProvider } from "@/contexts/ui-context";
+import { ComposeProvider } from "@/features/compose/compose-context";
 import { KeyboardProvider } from "@/features/shortcuts/keyboard-provider";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
 import { AppShell } from "@/components/layout/app-shell";
@@ -25,10 +26,12 @@ function GoShortcuts() {
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <UiProvider>
-      <KeyboardProvider>
-        <GoShortcuts />
-        <AppShell>{children}</AppShell>
-      </KeyboardProvider>
+      <ComposeProvider>
+        <KeyboardProvider>
+          <GoShortcuts />
+          <AppShell>{children}</AppShell>
+        </KeyboardProvider>
+      </ComposeProvider>
     </UiProvider>
   );
 }

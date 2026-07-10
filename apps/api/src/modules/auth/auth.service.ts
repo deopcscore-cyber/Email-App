@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, Logger } from "@nestjs/common";
 import type { SessionUserDto } from "@novamail/shared";
+import { QueueService } from "../../jobs/queue.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import type { OAuthIdentity } from "./oauth/oauth.types";
@@ -19,6 +20,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly vault: TokenVaultService,
+    private readonly queues: QueueService,
   ) {}
 
   /**
@@ -81,7 +83,10 @@ export class AuthService {
       Math.max(identity.accessTokenExpiresIn - 60, 60),
     );
 
-    // Phase 4: enqueue `sync:backfill` for this account here.
+    await this.queues.enqueue("sync", {
+      kind: "backfill",
+      accountId: account.id,
+    });
     this.logger.log(
       `Connected ${identity.provider} mailbox ${identity.email} for user ${userId}`,
     );

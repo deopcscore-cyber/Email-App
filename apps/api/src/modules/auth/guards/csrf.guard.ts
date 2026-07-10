@@ -22,6 +22,10 @@ export class CsrfGuard implements CanActivate {
     if (SAFE_METHODS.has(req.method)) {
       return true;
     }
+    // Provider webhooks are authenticated by their own mechanisms, not cookies.
+    if (req.path.startsWith("/api/v1/webhooks/")) {
+      return true;
+    }
 
     const cookie = (req.cookies as Record<string, string | undefined>)[
       CSRF_COOKIE
