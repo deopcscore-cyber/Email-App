@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { API_PREFIX, SESSION_COOKIE } from "@novamail/shared";
+import { AppProviders } from "./app-providers";
 
 const API_URL = process.env.API_URL ?? "http://localhost:4000";
 
@@ -26,5 +27,5 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  return <>{children}</>;
+  return <AppProviders>{children}</AppProviders>;
 }

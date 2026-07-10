@@ -59,7 +59,7 @@ and OAuth callbacks share the web origin.
 |---|---|---|
 | 1 | Architecture, folder structure, DB schema, user flows, API design | ✅ |
 | 2 | Authentication — OAuth (PKCE), sessions, CSRF, encrypted token vault | ✅ |
-| 3 | Dashboard UI (three-column layout, theming, responsive shell) | ⏳ |
+| 3 | Dashboard UI — shell, list, reading pane, AI panel, keyboard system | ✅ |
 | 4 | Email features (sync, compose, triage, search, shortcuts) | ⏳ |
 | 5 | AI integration (panel, streaming, smart features) | ⏳ |
 | 6 | Animations & micro-interactions | ⏳ |

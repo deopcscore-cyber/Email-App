@@ -5,10 +5,20 @@ import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CsrfGuard } from "./modules/auth/guards/csrf.guard";
+import { LabelsModule } from "./modules/labels/labels.module";
+import { ThreadsModule } from "./modules/threads/threads.module";
 import { UsersModule } from "./modules/users/users.module";
 
 @Module({
-  imports: [ConfigModule, PrismaModule, RedisModule, AuthModule, UsersModule],
+  imports: [
+    ConfigModule,
+    PrismaModule,
+    RedisModule,
+    AuthModule,
+    UsersModule,
+    ThreadsModule,
+    LabelsModule,
+  ],
   providers: [
     // CSRF applies globally to every mutating route; safe methods pass.
     { provide: APP_GUARD, useClass: CsrfGuard },
