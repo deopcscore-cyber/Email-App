@@ -1,0 +1,15 @@
+{
+  "extends": "@novamail/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "strictPropertyInitialization": false,
+    "declaration": false
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

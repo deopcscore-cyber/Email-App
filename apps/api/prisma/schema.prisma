@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── Identity ─────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings  UserSettings?
+  accounts  EmailAccount[]
+  sessions  Session[]
+  labels    Label[]
+  artifacts AiArtifact[]
+  reminders FollowUpReminder[]
+
+  @@map("users")
+}
+
+model UserSettings {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  theme             Theme   @default(SYSTEM)
+  undoWindowSeconds Int     @default(10)
+  aiEnabled         Boolean @default(true)
+  aiAutoLabels      Boolean @default(true)
+  aiDailyBriefing   Boolean @default(true)
+  aiFollowUps       Boolean @default(true)
+  briefingHourLocal Int     @default(8)
+  timezone          String  @default("UTC")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// ───────────────────── Connected accounts ─────────────────────
+
+enum Provider {
+  GOOGLE
+  MICROSOFT
+}
+
+enum SyncStatus {
+  PENDING
+  BACKFILLING
+  ACTIVE
+  ERROR
+  DISCONNECTED
+}
+
+model EmailAccount {
+  id                    String     @id @default(cuid())
+  userId                String
+  provider              Provider
+  providerAccountId     String
+  email                 String
+  displayName           String?
+  encryptedRefreshToken String
+  scopes                String[]
+  syncStatus            SyncStatus @default(PENDING)
+  syncCursor            String?
+  watchExpiresAt        DateTime?
+  lastSyncedAt          DateTime?
+  color                 String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threads  Thread[]
+  messages Message[]
+  contacts Contact[]
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("email_accounts")
+}
+
+// ───────────────────────── Mail ─────────────────────────
+
+enum Folder {
+  INBOX
+  SENT
+  DRAFTS
+  SPAM
+  TRASH
+  ARCHIVE
+}
+
+model Thread {
+  id               String    @id @default(cuid())
+  accountId        String
+  providerThreadId String
+  subject          String    @default("")
+  snippet          String    @default("")
+  folder           Folder    @default(INBOX)
+  participants     Json
+  messageCount     Int       @default(1)
+  unreadCount      Int       @default(0)
+  isStarred        Boolean   @default(false)
+  isPinned         Boolean   @default(false)
+  isPriority       Boolean   @default(false)
+  hasAttachments   Boolean   @default(false)
+  snoozedUntil     DateTime?
+  lastMessageAt    DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  account   EmailAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  labels    ThreadLabel[]
+  artifacts AiArtifact[]
+  reminders FollowUpReminder[]
+
+  @@unique([accountId, providerThreadId])
+  @@index([accountId, folder, lastMessageAt(sort: Desc)])
+  @@index([accountId, snoozedUntil])
+  @@index([accountId, isPriority, lastMessageAt(sort: Desc)])
+  @@map("threads")
+}
+
+enum SendStatus {
+  NONE
+  DRAFT
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+}
+
+model Message {
+  id                String     @id @default(cuid())
+  threadId          String
+  accountId         String
+  providerMessageId String?
+  fromAddress       Json
+  toAddresses       Json
+  ccAddresses       Json       @default("[]")
+  bccAddresses      Json       @default("[]")
+  replyToMessageId  String?
+  subject           String     @default("")
+  snippet           String     @default("")
+  bodyHtml          String?
+  bodyText          String?
+  isRead            Boolean    @default(false)
+  isDraftReplyAll   Boolean    @default(false)
+  sendStatus        SendStatus @default(NONE)
+  scheduledAt       DateTime?
+  sentAt            DateTime?
+  receivedAt        DateTime   @default(now())
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  thread      Thread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  account     EmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  artifacts   AiArtifact[]
+
+  @@unique([accountId, providerMessageId])
+  @@index([threadId, receivedAt])
+  @@index([accountId, sendStatus, scheduledAt])
+  @@map("messages")
+}
+
+model Attachment {
+  id                   String  @id @default(cuid())
+  messageId            String
+  providerAttachmentId String?
+  filename             String
+  mimeType             String
+  sizeBytes            Int
+  storageKey           String?
+  isInline             Boolean @default(false)
+  contentId            String?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("attachments")
+}
+
+// ───────────────────────── Labels ─────────────────────────
+
+model Label {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  color           String   @default("#6E56CF")
+  providerLabelId String?
+  createdAt       DateTime @default(now())
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threads ThreadLabel[]
+
+  @@unique([userId, name])
+  @@map("labels")
+}
+
+model ThreadLabel {
+  threadId      String
+  labelId       String
+  isAiSuggested Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  label  Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, labelId])
+  @@index([labelId])
+  @@map("thread_labels")
+}
+
+// ───────────────────────── Contacts ─────────────────────────
+
+model Contact {
+  id             String    @id @default(cuid())
+  accountId      String
+  email          String
+  name           String?
+  interactions   Int       @default(0)
+  lastInteracted DateTime?
+
+  account EmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, email])
+  @@map("contacts")
+}
+
+// ───────────────────────── AI ─────────────────────────
+
+enum AiFeature {
+  THREAD_SUMMARY
+  MESSAGE_SUMMARY
+  ACTION_ITEMS
+  MEETING_DETECTION
+  TRANSLATION
+  SMART_LABELS
+  DAILY_BRIEFING
+  FOLLOW_UP
+}
+
+model AiArtifact {
+  id            String    @id @default(cuid())
+  userId        String
+  threadId      String?
+  messageId     String?
+  feature       AiFeature
+  param         String    @default("")
+  promptVersion Int
+  content       Json
+  model         String
+  tokensUsed    Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread  Thread?  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId, messageId, feature, param, promptVersion])
+  @@index([threadId, feature])
+  @@map("ai_artifacts")
+}
+
+model FollowUpReminder {
+  id        String   @id @default(cuid())
+  userId    String
+  threadId  String
+  reason    String
+  remindAt  DateTime
+  dismissed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([userId, remindAt, dismissed])
+  @@map("follow_up_reminders")
+}

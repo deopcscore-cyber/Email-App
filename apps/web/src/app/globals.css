@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/*
+ * NovaMail design tokens.
+ * Semantic variables drive both themes; components never hardcode colors.
+ * Palette calibrated to the NovaMail reference design: deep indigo-navy
+ * chrome, violet accent, calm light surfaces.
+ */
+:root {
+  --background: oklch(0.985 0.002 270);
+  --surface: oklch(1 0 0);
+  --surface-muted: oklch(0.965 0.004 270);
+  --border: oklch(0.922 0.006 270);
+  --foreground: oklch(0.205 0.02 270);
+  --muted-foreground: oklch(0.52 0.015 270);
+  --accent: oklch(0.585 0.2 285);          /* violet #6E56CF family */
+  --accent-strong: oklch(0.52 0.22 285);
+  --accent-foreground: oklch(0.99 0 0);
+  --accent-soft: oklch(0.94 0.035 285);
+  --chrome: oklch(0.16 0.035 278);         /* deep navy shell */
+  --chrome-foreground: oklch(0.95 0.008 270);
+  --chrome-muted: oklch(0.68 0.02 275);
+  --ring: oklch(0.585 0.2 285 / 45%);
+  --danger: oklch(0.6 0.21 25);
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: oklch(0.145 0.025 278);
+  --surface: oklch(0.185 0.025 278);
+  --surface-muted: oklch(0.225 0.025 278);
+  --border: oklch(0.28 0.02 278);
+  --foreground: oklch(0.95 0.008 270);
+  --muted-foreground: oklch(0.65 0.015 272);
+  --accent: oklch(0.68 0.17 285);
+  --accent-strong: oklch(0.74 0.15 285);
+  --accent-foreground: oklch(0.13 0.03 278);
+  --accent-soft: oklch(0.3 0.06 285);
+  --chrome: oklch(0.12 0.03 278);
+  --chrome-foreground: oklch(0.95 0.008 270);
+  --chrome-muted: oklch(0.62 0.02 275);
+  --ring: oklch(0.68 0.17 285 / 50%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-chrome: var(--chrome);
+  --color-chrome-foreground: var(--chrome-foreground);
+  --color-chrome-muted: var(--chrome-muted);
+  --color-ring: var(--ring);
+  --color-danger: var(--danger);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible, brand-colored focus rings everywhere. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
