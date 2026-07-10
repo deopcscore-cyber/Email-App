@@ -34,7 +34,11 @@ interface ComposeContextValue {
   draft: DraftDto | null;
   isOpen: boolean;
   openNew: () => void;
-  openFromThread: (thread: ThreadDetailDto, mode: Exclude<ComposeMode, "new">) => void;
+  openFromThread: (
+    thread: ThreadDetailDto,
+    mode: Exclude<ComposeMode, "new">,
+    options?: { bodyHtml?: string },
+  ) => void;
   reopenDraft: (draft: DraftDto) => void;
   close: () => void;
 }
@@ -71,7 +75,11 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
   }, [create]);
 
   const openFromThread = useCallback(
-    (thread: ThreadDetailDto, mode: Exclude<ComposeMode, "new">) => {
+    (
+      thread: ThreadDetailDto,
+      mode: Exclude<ComposeMode, "new">,
+      options?: { bodyHtml?: string },
+    ) => {
       const last = thread.messages[thread.messages.length - 1];
       if (last === undefined) return;
 
@@ -84,7 +92,7 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
           subject: thread.subject.startsWith("Fwd:")
             ? thread.subject
             : `Fwd: ${thread.subject}`,
-          bodyHtml: quoteForForward(thread),
+          bodyHtml: options?.bodyHtml ?? quoteForForward(thread),
         });
         return;
       }
@@ -107,7 +115,7 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
         subject: thread.subject.startsWith("Re:")
           ? thread.subject
           : `Re: ${thread.subject}`,
-        bodyHtml: "",
+        bodyHtml: options?.bodyHtml ?? "",
       });
     },
     [create, myEmail],

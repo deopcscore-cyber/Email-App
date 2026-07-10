@@ -61,7 +61,7 @@ and OAuth callbacks share the web origin.
 | 2 | Authentication — OAuth (PKCE), sessions, CSRF, encrypted token vault | ✅ |
 | 3 | Dashboard UI — shell, list, reading pane, AI panel, keyboard system | ✅ |
 | 4 | Email features — sync engine, compose, undo/schedule send, snooze, search, SSE | ✅ |
-| 5 | AI integration (panel, streaming, smart features) | ⏳ |
+| 5 | AI integration — streaming assistant, NL search, briefing, smart labels | ✅ |
 | 6 | Animations & micro-interactions | ⏳ |
 | 7 | Testing | ⏳ |
 | 8 | Deployment | ⏳ |

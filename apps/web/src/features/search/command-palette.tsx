@@ -12,6 +12,7 @@ import {
   PenLine,
   Search,
   Send,
+  Sparkles,
   Star,
   Sun,
   SunMoon,
@@ -21,10 +22,11 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SearchResultDto, ThreadListItemDto } from "@novamail/shared";
 import { useUi } from "@/contexts/ui-context";
+import { nlSearch } from "@/features/ai/api/ai.api";
 import { useCompose } from "@/features/compose/compose-context";
 import {
   useOverlayScope,
@@ -76,13 +78,24 @@ export function CommandPalette() {
     enabled: paletteOpen,
   });
 
+  const nl = useMutation({ mutationFn: nlSearch });
+
   useEffect(() => {
     if (paletteOpen) {
       setQuery("");
       setIndex(0);
+      nl.reset();
       setTimeout(() => inputRef.current?.focus(), 30);
     }
+    // nl is stable (useMutation identity churn is irrelevant here)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paletteOpen]);
+
+  // New keystrokes leave AI-search mode.
+  useEffect(() => {
+    nl.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   const { data: searchResult, isFetching } = useQuery({
     queryKey: ["search", debouncedQuery],
@@ -92,7 +105,15 @@ export function CommandPalette() {
     staleTime: 10_000,
     placeholderData: (prev) => prev,
   });
-  const threads = debouncedQuery.length > 1 ? (searchResult?.threads ?? []) : [];
+  // AI results take over the thread section once a compilation succeeds.
+  const threads =
+    nl.data !== undefined
+      ? nl.data.threads
+      : debouncedQuery.length > 1
+        ? (searchResult?.threads ?? [])
+        : [];
+  const looksNatural =
+    debouncedQuery.split(/\s+/).length >= 3 && nl.data === undefined;
 
   const commands = useMemo<Command[]>(() => {
     const go = (path: string) => () => {
@@ -199,6 +220,49 @@ export function CommandPalette() {
             </div>
 
             <div className="max-h-[26rem] overflow-y-auto p-2">
+              {/* AI natural-language escalation */}
+              {looksNatural && (
+                <button
+                  type="button"
+                  onClick={() => nl.mutate(query.trim())}
+                  disabled={nl.isPending}
+                  className="mb-1 flex w-full items-center gap-3 rounded-lg border border-dashed border-accent/40 bg-accent-soft/40 px-3 py-2 text-left text-[13px] text-accent transition-colors hover:bg-accent-soft"
+                >
+                  <Sparkles
+                    className={cn("size-4", nl.isPending && "animate-pulse")}
+                    aria-hidden
+                  />
+                  {nl.isPending
+                    ? "Compiling your search…"
+                    : `Ask AI: “${query.trim()}”`}
+                </button>
+              )}
+              {nl.isError && (
+                <p className="px-3 py-1 text-xs text-danger">
+                  {nl.error instanceof Error ? nl.error.message : "AI search failed"}
+                </p>
+              )}
+              {nl.data !== undefined && (
+                <div className="mb-1 flex flex-wrap items-center gap-1.5 px-3 py-1.5">
+                  <Sparkles className="size-3.5 text-accent" aria-hidden />
+                  {nl.data.chips.map((chip) => (
+                    <span
+                      key={chip}
+                      className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[11px] font-medium text-accent"
+                    >
+                      {chip}
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => nl.reset()}
+                    className="ml-1 text-[11px] text-muted-foreground underline hover:text-foreground"
+                  >
+                    clear
+                  </button>
+                </div>
+              )}
+
               {threads.length > 0 && (
                 <>
                   <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">

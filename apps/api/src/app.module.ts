@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule } from "./config/config.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
+import { AiModule } from "./modules/ai/ai.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CsrfGuard } from "./modules/auth/guards/csrf.guard";
 import { ContactsModule } from "./modules/contacts/contacts.module";
@@ -28,6 +29,7 @@ import { UsersModule } from "./modules/users/users.module";
     MessagesModule,
     SearchModule,
     ContactsModule,
+    AiModule,
   ],
   providers: [
     // CSRF applies globally to every mutating route; safe methods pass.

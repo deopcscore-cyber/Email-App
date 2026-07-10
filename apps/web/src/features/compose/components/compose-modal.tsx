@@ -33,6 +33,7 @@ import {
 import { useCompose } from "../compose-context";
 import { Editor } from "./editor";
 import { RecipientField } from "./recipient-field";
+import { RewriteMenu } from "./rewrite-menu";
 
 const AUTOSAVE_MS = 1_500;
 
@@ -74,6 +75,8 @@ export function ComposeModal() {
   const [uploading, setUploading] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  // Bumped when AI rewrites the body so the editor remounts with new content.
+  const [editorVersion, setEditorVersion] = useState(0);
 
   const draftId = draft?.id ?? null;
   const dirtyRef = useRef(false);
@@ -293,8 +296,8 @@ export function ComposeModal() {
             </label>
 
             <Editor
-              key={draft.id}
-              initialHtml={draft.bodyHtml}
+              key={`${draft.id}:${editorVersion}`}
+              initialHtml={editorVersion === 0 ? draft.bodyHtml : bodyHtml}
               onChange={setBodyHtml}
               onSubmit={() => void doSend()}
             />
@@ -379,6 +382,15 @@ export function ComposeModal() {
                 ))}
               </div>
             )}
+
+            <RewriteMenu
+              draftId={draft.id}
+              currentBody={bodyHtml}
+              onRewritten={(html) => {
+                setBodyHtml(html);
+                setEditorVersion((v) => v + 1);
+              }}
+            />
 
             <label
               className={cn(

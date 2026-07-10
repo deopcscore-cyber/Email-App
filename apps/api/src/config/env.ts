@@ -27,6 +27,9 @@ const envSchema = z.object({
   MICROSOFT_TENANT: z.string().default("common"),
 
   OPENAI_API_KEY: z.string().default(""),
+  OPENAI_MODEL: z.string().default("gpt-4o-mini"),
+  /** Override for tests/self-hosted gateways; production uses the default. */
+  OPENAI_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
 });
 
 export type Env = z.infer<typeof envSchema>;
