@@ -344,13 +344,20 @@ export class SyncService {
       return;
     }
     const latest = messages[0] as (typeof messages)[number];
+    // Counterparties first so the list row shows "who this is with", not the
+    // account owner -- messages are newest-first, so without this sort a
+    // thread you replied to last shows your own name/avatar in the list.
     const participants = [
       ...new Map(
         messages
           .map((m) => m.fromAddress as { name: string | null; email: string })
           .map((a) => [a.email, a]),
       ).values(),
-    ];
+    ].sort(
+      (a, b) =>
+        (a.email.toLowerCase() === accountEmail.toLowerCase() ? 1 : 0) -
+        (b.email.toLowerCase() === accountEmail.toLowerCase() ? 1 : 0),
+    );
 
     await this.prisma.thread.update({
       where: { id: threadId },
