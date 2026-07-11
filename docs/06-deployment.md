@@ -1,6 +1,7 @@
 # 06 — Deployment
 
-Web on **Vercel**, API + worker + Postgres + Redis on **Railway**. CI on
+Everything runs on **Railway**: three services (web, api, worker) built from
+two Dockerfiles, plus managed Postgres and Redis plugins. CI runs on
 **GitHub Actions**. This doc is the runbook: what gets deployed where, every
 environment variable each service needs, and the steps to go from a clean
 checkout to a live production stack.
@@ -8,61 +9,86 @@ checkout to a live production stack.
 ## Topology
 
 ```
-                         ┌────────────────────┐
-  Browser ─────────────▶ │  Vercel (web)       │
-                         │  apps/web, Next.js  │
-                         └─────────┬───────────┘
-                                   │ same-origin rewrite:
-                                   │ /api/:path* → API_URL
-                                   ▼
-                         ┌────────────────────┐
-                         │  Railway (api)      │
-                         │  apps/api, Nest     │──┐
-                         └─────────┬───────────┘  │
-                                   │               │ enqueue
-                                   ▼               ▼
-                         ┌────────────────┐  ┌───────────────┐
-                         │  Railway        │  │ Railway        │
-                         │  Postgres       │  │ Redis          │
-                         └────────────────┘  └───────┬───────┘
-                                                       │
-                                              ┌────────▼────────┐
-                                              │ Railway (worker) │
-                                              │ apps/api,        │
-                                              │ dist/worker.js   │
-                                              └──────────────────┘
+                    ┌──────────────────────────┐
+  Browser ────────▶ │  Railway: web              │
+                    │  apps/web, Next.js         │
+                    │  (Dockerfile, standalone)  │
+                    └─────────────┬──────────────┘
+                                  │ same-origin rewrite:
+                                  │ /api/:path* → API_URL
+                                  ▼
+                    ┌──────────────────────────┐
+                    │  Railway: api              │──┐
+                    │  apps/api, Nest            │  │
+                    └─────────────┬──────────────┘  │
+                                  │                   │ enqueue
+                                  ▼                   ▼
+                    ┌────────────────┐  ┌───────────────┐
+                    │  Railway         │  │ Railway        │
+                    │  Postgres plugin │  │ Redis plugin   │
+                    └────────────────┘  └───────┬───────┘
+                                                  │
+                                         ┌────────▼────────┐
+                                         │ Railway: worker  │
+                                         │ apps/api,        │
+                                         │ dist/worker.js   │
+                                         └──────────────────┘
 ```
 
-The web app never talks to Railway directly from the browser. `apps/web/next.config.ts`
-rewrites `/api/:path*` to `API_URL` server-side, so the browser only ever sees
-Vercel's origin — this keeps the session cookie first-party (httpOnly,
-`SameSite=Lax`) instead of needing a cross-site cookie exception.
+The web app never talks to the api service directly from the browser.
+`apps/web/next.config.ts` rewrites `/api/:path*` to `API_URL` — this keeps
+the session cookie first-party (httpOnly, `SameSite=Lax`) instead of needing
+a cross-site cookie exception, exactly as if web and api were on the same
+domain.
 
 `api` and `worker` are **the same Docker image** (`apps/api/Dockerfile`)
 deployed as two Railway services with different start commands — see
-`apps/api/railway.api.json` / `apps/api/railway.worker.json`. They share one
-Postgres and one Redis instance; the worker has no HTTP listener and no
-health check path.
+`apps/api/railway.api.json` / `apps/api/railway.worker.json`. `web` is a
+third service with its own image (`apps/web/Dockerfile` /
+`apps/web/railway.web.json`). All three share one Postgres and one Redis
+instance; the worker has no HTTP listener and no health check path.
+
+### Why one build-time detail matters: `API_URL` is baked in, not read at runtime
+
+`next.config.ts`'s `rewrites()` is evaluated **during `next build`**, and
+its result is written into `.next/routes-manifest.json` — the standalone
+server reads that manifest at boot, it does not re-evaluate
+`process.env.API_URL` per request. That means `API_URL` must be supplied as
+a **Docker build argument**, not just a runtime environment variable.
+
+`apps/web/Dockerfile` declares `ARG API_URL` / `ENV API_URL=$API_URL` right
+before the build step specifically so Railway's automatic "expose service
+variables as build args for any declared `ARG`" behavior picks it up. When
+you set `API_URL` on the web service in the Railway dashboard, set it as a
+value visible to the **build** (Railway does this by default for Docker
+builds when the `ARG` name matches) — a plain runtime-only variable won't
+reach the build and the rewrite will silently fall back to
+`http://localhost:4000`.
 
 ## One-time setup
 
-### 1. Railway — Postgres and Redis
+### 1. Railway project, Postgres, Redis
 
-Create a Railway project, add the **Postgres** and **Redis** plugins. Note
-their connection strings (`DATABASE_URL`, `REDIS_URL`) — Railway injects
-these automatically into services in the same project if you use variable
-references (`${{Postgres.DATABASE_URL}}`), which is the recommended approach
-over copy-pasting.
+```bash
+railway login                       # opens a browser, or use RAILWAY_TOKEN for CI
+railway init                        # create a new project, or `railway link` an existing one
+railway add --plugin postgresql
+railway add --plugin redis
+```
 
-### 2. Railway — api service
+Note the plugin service names (default `Postgres` / `Redis`) — other
+services reference their connection strings via
+`${{Postgres.DATABASE_URL}}` and `${{Redis.REDIS_URL}}` rather than
+copy-pasted values, so a credential rotation on the plugin doesn't require
+touching every consumer.
 
-Create a new service from this GitHub repo, root the build at the repo root
-(the Dockerfile path is relative to repo root: `apps/api/Dockerfile`).
-Point its config at `apps/api/railway.api.json` (Railway → Settings →
-Config-as-code path), or paste its contents into the dashboard build/deploy
-settings if you'd rather not rely on the file being auto-detected.
+### 2. api service
 
-Environment variables (Settings → Variables):
+Create a service from this GitHub repo. Config-as-code path:
+`apps/api/railway.api.json` (Dockerfile: `apps/api/Dockerfile`, relative to
+repo root).
+
+Environment variables:
 
 | Variable | Value |
 |---|---|
@@ -70,74 +96,118 @@ Environment variables (Settings → Variables):
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
 | `REDIS_URL` | `${{Redis.REDIS_URL}}` |
 | `TOKEN_ENCRYPTION_KEY` | 32-byte hex — generate with `openssl rand -hex 32`, store nowhere else |
-| `APP_ORIGIN` | `https://<your-vercel-domain>` |
+| `APP_ORIGIN` | `https://${{web.RAILWAY_PUBLIC_DOMAIN}}` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from Google Cloud Console OAuth client |
 | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | from Azure App Registration |
 | `MICROSOFT_TENANT` | `common` (or your tenant ID for single-tenant) |
 | `OPENAI_API_KEY` | from OpenAI dashboard |
 | `OPENAI_MODEL` | `gpt-4o-mini` (or your preferred model) |
 
-`API_PORT` does not need to be set — Nest listens on `4000` and Railway's
-proxy targets whatever port the container exposes; `EXPOSE 4000` in the
-Dockerfile documents this to Railway's port auto-detection.
+`${{web.RAILWAY_PUBLIC_DOMAIN}}` is Railway's built-in cross-service
+reference — it resolves once the `web` service has a public domain
+generated (Settings → Networking → Generate Domain), so create the `web`
+service before finalizing this value.
 
-**Release command (migrations):** set the service's release command to:
+**Release command (migrations):** set the api service's release command to:
 
 ```
 pnpm --filter @novamail/api exec prisma migrate deploy
 ```
 
 Do **not** bake `prisma migrate deploy` into the container's `CMD` — Railway
-runs the release command once per deploy, before the new instances take
+runs the release command once per deploy, before new instances take
 traffic, whereas a `CMD`-embedded migration would re-run on every replica
 boot and race against itself if `numReplicas` is ever increased.
 
-### 3. Railway — worker service
+### 3. worker service
 
-Add a second service from the **same repo**, same Dockerfile
-(`apps/api/Dockerfile`), config-as-code path `apps/api/railway.worker.json`.
-Same environment variables as the api service (it needs `DATABASE_URL`,
-`REDIS_URL`, `TOKEN_ENCRYPTION_KEY`, and the OAuth/OpenAI credentials to run
-sync/send/snooze jobs) — no release command needed here, migrations are
+Second service, same repo, same Dockerfile (`apps/api/Dockerfile`),
+config-as-code path `apps/api/railway.worker.json`. Same environment
+variables as the api service — it needs `DATABASE_URL`, `REDIS_URL`,
+`TOKEN_ENCRYPTION_KEY`, and the OAuth/OpenAI credentials to run the
+sync/send/snooze job processors. No release command here — migrations are
 owned by the api service.
 
-### 4. Vercel — web app
+### 4. web service
 
-Import the repo into Vercel. In **Project Settings → General**:
+Third service, same repo, Dockerfile `apps/web/Dockerfile`,
+config-as-code path `apps/web/railway.web.json`.
 
-- **Root Directory**: `apps/web` (this cannot be set via a committed file —
-  it's a dashboard-only setting)
-- Framework preset: Next.js (auto-detected)
+Environment variables:
 
-`apps/web/vercel.json` supplies the install/build commands, which `cd`
-back to the monorepo root so Turborepo can see the full workspace:
+| Variable | Value | Visible to |
+|---|---|---|
+| `API_URL` | `https://${{api.RAILWAY_PUBLIC_DOMAIN}}` | **build** (see note above) |
 
-```json
-{
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && pnpm turbo build --filter=@novamail/web"
-}
-```
-
-Environment variables (Project Settings → Environment Variables):
-
-| Variable | Value |
-|---|---|
-| `API_URL` | Railway api service's public URL, e.g. `https://novamail-api.up.railway.app` |
-
-That's the only one the web app needs — everything else (OAuth, OpenAI,
-encryption) lives server-side on the api service.
+Generate a public domain for this service (Settings → Networking →
+Generate Domain) — that's the URL end users hit, and the value the api
+service's `APP_ORIGIN` should reference.
 
 ### 5. OAuth redirect URIs
 
-Both Google Cloud Console and the Azure App Registration need the production
-callback URLs added (in addition to the localhost ones used for dev):
+Both Google Cloud Console and the Azure App Registration need the
+production callback URLs added (in addition to the localhost ones used for
+dev):
 
-- Google: `https://<railway-api-domain>/api/v1/auth/google/callback`
-- Microsoft: `https://<railway-api-domain>/api/v1/auth/microsoft/callback`
+- Google: `https://<api-service-domain>/api/v1/auth/google/callback`
+- Microsoft: `https://<api-service-domain>/api/v1/auth/microsoft/callback`
 
 (Exact path per `docs/05-api-design.md`'s auth routes — update if those
 routes move.)
+
+## Provisioning via CLI
+
+The full sequence, once you have a `RAILWAY_TOKEN` (Project Token or Account
+Token, from Railway → Account Settings → Tokens):
+
+```bash
+export RAILWAY_TOKEN=...            # never commit this
+
+railway init --name novamail        # or: railway link <existing-project-id>
+
+railway add --plugin postgresql
+railway add --plugin redis
+
+# api
+railway add --service api --repo <owner>/<repo>
+railway variables --service api \
+  --set NODE_ENV=production \
+  --set DATABASE_URL='${{Postgres.DATABASE_URL}}' \
+  --set REDIS_URL='${{Redis.REDIS_URL}}' \
+  --set TOKEN_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --set GOOGLE_CLIENT_ID=... --set GOOGLE_CLIENT_SECRET=... \
+  --set MICROSOFT_CLIENT_ID=... --set MICROSOFT_CLIENT_SECRET=... --set MICROSOFT_TENANT=common \
+  --set OPENAI_API_KEY=... --set OPENAI_MODEL=gpt-4o-mini
+
+# worker — same variables, no release command
+railway add --service worker --repo <owner>/<repo>
+railway variables --service worker \
+  --set NODE_ENV=production \
+  --set DATABASE_URL='${{Postgres.DATABASE_URL}}' \
+  --set REDIS_URL='${{Redis.REDIS_URL}}' \
+  --set TOKEN_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --set GOOGLE_CLIENT_ID=... --set GOOGLE_CLIENT_SECRET=... \
+  --set MICROSOFT_CLIENT_ID=... --set MICROSOFT_CLIENT_SECRET=... --set MICROSOFT_TENANT=common \
+  --set OPENAI_API_KEY=... --set OPENAI_MODEL=gpt-4o-mini
+
+# web
+railway add --service web --repo <owner>/<repo>
+railway domain --service web        # generates a public domain, prints it
+railway variables --service web --set API_URL='https://${{api.RAILWAY_PUBLIC_DOMAIN}}'
+
+railway domain --service api        # generates api's public domain
+railway variables --service api --set APP_ORIGIN='https://${{web.RAILWAY_PUBLIC_DOMAIN}}'
+```
+
+Point each service's config-as-code path and release command via the
+dashboard (Settings → Config-as-code / Deploy), since those aren't yet
+exposed as `railway variables` flags. Exact flag names vary by CLI version
+— run `railway --help` / `railway <command> --help` to confirm against
+whatever version you have installed.
+
+`TOKEN_ENCRYPTION_KEY` must be the **same value** on both `api` and
+`worker` — generate it once and set it on both, don't run
+`openssl rand -hex 32` twice.
 
 ## CI — GitHub Actions
 
@@ -154,48 +224,59 @@ request:
   to respond, then runs the Playwright suite. Uploads the HTML report and
   service logs as artifacts on failure.
 
-Neither job deploys anything — Vercel and Railway both deploy independently
-on push via their own GitHub integrations once connected (Vercel: automatic
-on every push to the production branch; Railway: enable "Deploy on push" per
-service). CI is the merge gate; the platforms' own webhooks are the deploy
-trigger.
+Neither job deploys anything — Railway deploys independently on push once
+"Deploy on push" is enabled per service (or via `railway up` / the CLI
+sequence above for manual/CI-triggered deploys). CI is the merge gate;
+Railway's own webhook is the deploy trigger.
 
 ## Post-deploy checklist
 
 After the first deploy (and after any change to env vars or OAuth apps):
 
-1. `GET https://<railway-api-domain>/api/v1/health` returns
+1. `GET https://<api-domain>/api/v1/health` returns
    `{"status":"ok","postgres":"ok","redis":"ok"}`.
-2. Load the Vercel URL, confirm the login page renders and "Sign in with
-   Google" / "Sign in with Microsoft" both redirect to the correct
-   provider consent screen (verifies `APP_ORIGIN`, OAuth client IDs, and
-   redirect URIs are all correct).
-3. Complete a real OAuth sign-in, confirm the inbox loads with synced
+2. `GET https://<web-domain>/login` returns 200 and renders the sign-in
+   page (this is also the web service's health check path).
+3. Load the web URL, confirm "Sign in with Google" / "Sign in with
+   Microsoft" both redirect to the correct provider consent screen
+   (verifies `APP_ORIGIN`, OAuth client IDs, and redirect URIs are all
+   correct).
+4. Complete a real OAuth sign-in, confirm the inbox loads with synced
    threads (verifies the worker is running, `DATABASE_URL`/`REDIS_URL` are
    shared correctly between api and worker, and the provider sync jobs are
    processing).
-4. Send a test email and confirm undo-send and delivery both work
+5. Send a test email and confirm undo-send and delivery both work
    (verifies BullMQ delayed jobs and provider send scopes).
-5. Trigger an AI action (summarize a thread) and confirm streaming works
-   end-to-end through the Vercel rewrite (verifies `OPENAI_API_KEY` and that
-   SSE isn't buffered by an intermediary — Vercel's rewrite passes SSE
-   through, but double check after any proxy config change).
+6. Trigger an AI action (summarize a thread) and confirm streaming works
+   end-to-end through the web→api rewrite (verifies `OPENAI_API_KEY` and
+   that SSE isn't buffered by an intermediary — double check after any
+   change to the rewrite or a Railway proxy config change).
+7. If `API_URL` or `APP_ORIGIN` ever changes (e.g. a custom domain), redeploy
+   the **web** service (not just restart) — the rewrite destination is
+   baked in at build time, a runtime variable change alone won't take
+   effect.
 
-## Local reproduction of the Docker build
+## Local reproduction of the Docker builds
 
 This sandbox's network policy blocks pulling `node:22-alpine` from Docker
-Hub, so `apps/api/Dockerfile` was validated by executing each `RUN` step
-directly on the host (dependency install, `prisma generate`, `turbo build`,
-`pnpm deploy --filter=@novamail/api --prod --legacy`) rather than a full
-`docker build`. If you have Docker Hub access, verify with:
+Hub, so neither Dockerfile was validated with an actual `docker build` here.
+Both were instead validated by executing their `RUN` steps directly on the
+host and running the resulting artifacts:
+
+- `apps/api/Dockerfile`: dependency install, `prisma generate`,
+  `turbo build`, `pnpm deploy --filter=@novamail/api --prod --legacy`,
+  inspected the output tree.
+- `apps/web/Dockerfile`: `next build` with `API_URL` set, confirmed the
+  rewrite destination lands in `.next/routes-manifest.json`, copied
+  `.next/standalone` + `.next/static` into the same layout the runtime
+  stage produces, and booted `node apps/web/server.js` directly — it served
+  `/login` (200) and `/` (307 auth redirect) correctly.
+
+If you have Docker Hub access, verify both with a real build before the
+first Railway deploy, since Railway's own build environment is the actual
+source of truth and hasn't been exercised from this environment either:
 
 ```bash
 docker build -f apps/api/Dockerfile -t novamail-api .
-docker run --rm -e DATABASE_URL=... -e REDIS_URL=... -e TOKEN_ENCRYPTION_KEY=... \
-  -p 4000:4000 novamail-api
-curl localhost:4000/api/v1/health
+docker build -f apps/web/Dockerfile -t novamail-web --build-arg API_URL=https://api.example.com .
 ```
-
-before the first real Railway deploy, since Railway's own build environment
-is the actual source of truth and hasn't been exercised from this
-environment either.

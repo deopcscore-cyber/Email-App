@@ -103,14 +103,16 @@ counts) but starts from a known state either way.
 | 5 | AI integration — streaming assistant, NL search, briefing, smart labels | ✅ |
 | 6 | Animations & micro-interactions — motion system, reduced-motion support | ✅ |
 | 7 | Testing — Jest/Supertest (API), Vitest/RTL (web), Playwright (e2e) | ✅ |
-| 8 | Deployment — Vercel (web), Railway (api/worker/Postgres/Redis), GitHub Actions CI | ✅ |
+| 8 | Deployment — Railway (web/api/worker/Postgres/Redis), GitHub Actions CI | ✅ |
 
 ## Deployment
 
-Web ships to Vercel, the API and background worker ship to Railway as two
-services built from the same `apps/api/Dockerfile`, and GitHub Actions gates
-every push with lint/typecheck/build/test/e2e. Full runbook — environment
-variables per service, OAuth redirect URIs, migration strategy, post-deploy
+Everything ships to Railway: three services (web, api, worker) built from
+two Dockerfiles (api and worker share `apps/api/Dockerfile`; web has its own
+`apps/web/Dockerfile`), plus managed Postgres and Redis plugins. GitHub
+Actions gates every push with lint/typecheck/build/test/e2e. Full runbook —
+environment variables per service, OAuth redirect URIs, migration strategy,
+CLI provisioning commands, post-deploy
 checklist — is in [docs/06-deployment.md](docs/06-deployment.md).
 
 CI workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
