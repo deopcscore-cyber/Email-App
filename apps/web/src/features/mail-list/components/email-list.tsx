@@ -16,6 +16,7 @@ import { ListSkeleton } from "./list-skeleton";
 const VIEW_TITLES: Record<MailView, string> = {
   inbox: "Inbox",
   priority: "Priority",
+  unread: "Unread",
   snoozed: "Snoozed",
   starred: "Starred",
   sent: "Sent",

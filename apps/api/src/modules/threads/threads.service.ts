@@ -74,6 +74,12 @@ export class ThreadsService {
           isPriority: true,
           folder: { notIn: ["TRASH", "SPAM"] },
         };
+      case "unread":
+        return {
+          ...scope,
+          unreadCount: { gt: 0 },
+          folder: { notIn: ["TRASH", "SPAM", "DRAFTS"] },
+        };
       case "snoozed":
         return { ...scope, snoozedUntil: { not: null } };
       case "starred":
@@ -264,13 +270,20 @@ export class ThreadsService {
   }
 
   async counts(userId: string): Promise<ThreadCountsDto> {
-    const [inbox, drafts, snoozed, spam] = await Promise.all([
+    const [inbox, unread, drafts, snoozed, spam] = await Promise.all([
       this.prisma.thread.count({
         where: {
           account: { userId },
           folder: "INBOX",
           snoozedUntil: null,
           unreadCount: { gt: 0 },
+        },
+      }),
+      this.prisma.thread.count({
+        where: {
+          account: { userId },
+          unreadCount: { gt: 0 },
+          folder: { notIn: ["TRASH", "SPAM", "DRAFTS"] },
         },
       }),
       this.prisma.thread.count({
@@ -287,7 +300,7 @@ export class ThreadsService {
         },
       }),
     ]);
-    return { inbox, drafts, snoozed, spam };
+    return { inbox, unread, drafts, snoozed, spam };
   }
 
   private toListItem(t: ThreadWithLabels): ThreadListItemDto {

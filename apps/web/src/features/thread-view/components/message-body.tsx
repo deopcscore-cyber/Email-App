@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTheme } from "next-themes";
 import type { AttachmentDto } from "@novamail/shared";
 import { attachmentUrl } from "../lib/attachment-url";
 
@@ -37,25 +36,23 @@ function resolveCidReferences(html: string, attachments: AttachmentDto[]): strin
  * fully inert while still letting us read its height for auto-sizing;
  * `allow-popups` lets links open in a new tab.
  *
- * Dark mode here is a default, not a forced inversion: most real HTML mail
- * hardcodes its own background/text colors (inline styles, bgcolor attrs),
- * which this intentionally leaves alone -- overriding them would break the
- * sender's actual design. This only changes what a message with no explicit
- * styling of its own (plain composed mail, simple transactional emails)
- * falls back to, so it doesn't render as a stark white card in a dark app.
+ * Always renders on a light background regardless of app theme, same as
+ * Gmail/Outlook/Apple Mail: real HTML mail sets its own colors assuming a
+ * white page (a signature block might set dark gray text but never set a
+ * background, trusting the browser default), so flipping the default to
+ * dark makes that text vanish rather than adapt. Third-party HTML isn't
+ * safe to theme -- the surrounding card chrome is dark, the message itself
+ * stays a light "island", which is what every real client does here.
  */
-function buildSrcDoc(sanitizedHtml: string, dark: boolean): string {
-  const bg = dark ? "#1f1f26" : "#fff";
-  const fg = dark ? "#e8e8ec" : "#1a1a1a";
-  const link = dark ? "#9B85FF" : "#6E56CF";
+function buildSrcDoc(sanitizedHtml: string): string {
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html,body{margin:0;padding:0;background:${bg};color:${fg};}
+  html,body{margin:0;padding:0;background:#fff;color:#1a1a1a;}
   body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.6;word-wrap:break-word;overflow-wrap:anywhere;}
   img{max-width:100%;height:auto;}
   table{max-width:100%!important;}
-  a{color:${link};}
+  a{color:#6E56CF;}
   pre{white-space:pre-wrap;}
 </style>
 </head><body>${sanitizedHtml}</body></html>`;
@@ -73,8 +70,6 @@ export function MessageBody({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [srcDoc, setSrcDoc] = useState<string | null>(null);
   const [height, setHeight] = useState(0);
-  const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme === "dark";
 
   // DOMPurify needs a real DOM; loading it in an effect keeps it out of SSR
   // entirely (it isn't safe to import at module scope in a server-rendered
@@ -97,12 +92,12 @@ export function MessageBody({
         linkHookInstalled = true;
       }
       const withImages = resolveCidReferences(bodyHtml, attachments);
-      setSrcDoc(buildSrcDoc(DOMPurify.sanitize(withImages), dark));
+      setSrcDoc(buildSrcDoc(DOMPurify.sanitize(withImages)));
     });
     return () => {
       cancelled = true;
     };
-  }, [bodyHtml, attachments, dark]);
+  }, [bodyHtml, attachments]);
 
   const resize = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
@@ -141,7 +136,7 @@ export function MessageBody({
       srcDoc={srcDoc}
       sandbox="allow-same-origin allow-popups"
       style={{ height }}
-      className="w-full rounded-lg border-0"
+      className="w-full rounded-lg border border-black/10"
     />
   );
 }

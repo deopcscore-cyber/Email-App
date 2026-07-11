@@ -143,7 +143,11 @@ export function MessageCard({
               to {message.to.map((a) => displayName(a)).join(", ")}
             </span>
           </span>
-          {!expanded && (
+          {expanded ? (
+            <span className="block truncate text-[11px] text-muted-foreground">
+              {message.from.email}
+            </span>
+          ) : (
             <span className="block truncate text-xs text-muted-foreground">
               {message.snippet}
             </span>

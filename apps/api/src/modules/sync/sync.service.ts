@@ -344,6 +344,18 @@ export class SyncService {
       return;
     }
     const latest = messages[0] as (typeof messages)[number];
+    // The message that actually decides Focused/Other: if you replied last,
+    // `latest` is your own outgoing message, whose `to` is the correspondent
+    // rather than you -- classifying off that made almost every thread you
+    // engage with fall out of Focused. Prefer the newest message that isn't
+    // from the account owner; only an all-outgoing thread falls back to
+    // `latest`.
+    const latestInbound =
+      messages.find(
+        (m) =>
+          (m.fromAddress as Address).email.toLowerCase() !==
+          accountEmail.toLowerCase(),
+      ) ?? latest;
     // Counterparties first so the list row shows "who this is with", not the
     // account owner -- messages are newest-first, so without this sort a
     // thread you replied to last shows your own name/avatar in the list.
@@ -370,8 +382,8 @@ export class SyncService {
         lastMessageAt: latest.receivedAt,
         isPriority: isLikelyFocused(
           accountEmail,
-          latest.fromAddress as Address,
-          latest.toAddresses as Address[],
+          latestInbound.fromAddress as Address,
+          latestInbound.toAddresses as Address[],
         ),
         ...(latestFolder !== undefined && { folder: latestFolder }),
       },

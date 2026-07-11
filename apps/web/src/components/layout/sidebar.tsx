@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   AlertOctagon,
+  Circle,
   Clock,
   FileText,
   Inbox,
@@ -34,12 +35,13 @@ interface NavItem {
   view: MailView;
   label: string;
   icon: LucideIcon;
-  countKey?: "inbox" | "drafts" | "snoozed" | "spam";
+  countKey?: "inbox" | "unread" | "drafts" | "snoozed" | "spam";
 }
 
 const NAV_ITEMS: NavItem[] = [
   { view: "inbox", label: "Inbox", icon: Inbox, countKey: "inbox" },
   { view: "priority", label: "Priority", icon: Zap },
+  { view: "unread", label: "Unread", icon: Circle, countKey: "unread" },
   { view: "snoozed", label: "Snoozed", icon: Clock, countKey: "snoozed" },
   { view: "starred", label: "Starred", icon: Star },
   { view: "sent", label: "Sent", icon: Send },

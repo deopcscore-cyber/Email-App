@@ -19,6 +19,7 @@ export const folderSchema = z.enum([
 export const mailViewSchema = z.enum([
   "inbox",
   "priority",
+  "unread",
   "snoozed",
   "starred",
   "sent",
@@ -113,6 +114,7 @@ export type TriagePatchDto = z.infer<typeof triagePatchSchema>;
 
 export const threadCountsSchema = z.object({
   inbox: z.number().int(),
+  unread: z.number().int(),
   drafts: z.number().int(),
   snoozed: z.number().int(),
   spam: z.number().int(),
