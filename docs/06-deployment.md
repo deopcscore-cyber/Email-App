@@ -93,6 +93,7 @@ Environment variables:
 | Variable | Value |
 |---|---|
 | `NODE_ENV` | `production` |
+| `PORT` | `4000` — see note below, this one matters more than it looks |
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
 | `REDIS_URL` | `${{Redis.REDIS_URL}}` |
 | `TOKEN_ENCRYPTION_KEY` | 32-byte hex — generate with `openssl rand -hex 32`, store nowhere else |
@@ -107,6 +108,21 @@ Environment variables:
 reference — it resolves once the `web` service has a public domain
 generated (Settings → Networking → Generate Domain), so create the `web`
 service before finalizing this value.
+
+**Why `PORT` is set explicitly:** Railway healthchecks against its own
+`$PORT` for the service, which is not necessarily the port the app
+happens to bind. `main.ts` listens on `process.env.PORT` when Railway
+provides it, falling back to `API_PORT` (default 4000) otherwise — but
+the service's public domain `targetPort` (set when you run
+`railway domain --service api --port 4000`, or via the dashboard) is a
+*separate* fixed value that has to agree with whatever port the app
+actually listens on. Pinning `PORT=4000` here removes the ambiguity: the
+app always listens on 4000, the domain always routes to 4000, and the
+healthcheck always probes 4000. Skipping this was the actual root cause
+the first time this was deployed — the container booted cleanly and
+logged "listening on :4000", but Railway's healthcheck kept failing with
+"service unavailable" because it was probing a different, dynamically
+assigned port the app never listened on.
 
 **Release command (migrations):** set the api service's release command
 (Railway calls this `preDeployCommand`) to:
@@ -183,6 +199,7 @@ railway add --plugin redis
 railway add --service api --repo <owner>/<repo>
 railway variables --service api \
   --set NODE_ENV=production \
+  --set PORT=4000 \
   --set DATABASE_URL='${{Postgres.DATABASE_URL}}' \
   --set REDIS_URL='${{Redis.REDIS_URL}}' \
   --set TOKEN_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
