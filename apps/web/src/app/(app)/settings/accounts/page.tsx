@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { linkAccountUrl } from "@/features/auth/api";
 import { GoogleLogo, MicrosoftLogo } from "@/features/auth/components/provider-logos";
 import { useSession } from "@/features/auth/use-session";
@@ -30,15 +28,7 @@ export default function AccountsSettingsPage() {
   const { data: user } = useSession();
 
   return (
-    <div className="mx-auto h-full w-full max-w-2xl overflow-y-auto px-6 py-8">
-      <Link
-        href="/inbox"
-        className="mb-6 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-3.5" aria-hidden />
-        Back to inbox
-      </Link>
-
+    <div className="mx-auto w-full max-w-2xl px-6 py-8">
       <h1 className="text-xl font-semibold tracking-tight">
         Connected accounts
       </h1>

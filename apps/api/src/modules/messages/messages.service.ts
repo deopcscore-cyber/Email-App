@@ -60,10 +60,18 @@ export class MessagesService {
   async createDraft(userId: string, dto: CreateDraftDto): Promise<DraftDto> {
     const account = await this.prisma.emailAccount.findFirst({
       where: { id: dto.accountId, userId },
+      include: { signature: true },
     });
     if (account === null) {
       throw new NotFoundException("Account not found");
     }
+
+    // Gmail-style default: the sending account's signature is appended to
+    // brand-new messages only, never to replies/forwards.
+    const bodyHtml =
+      dto.mode === "new" && account.signature?.isEnabled === true
+        ? `${dto.bodyHtml}<br><br>--<br>${account.signature.bodyHtml}`
+        : dto.bodyHtml;
 
     // Replies live on the original thread; new mail and forwards start one.
     let threadId: string;
@@ -111,7 +119,7 @@ export class MessagesService {
         replyToMessageId,
         isDraftReplyAll: dto.mode === "replyAll",
         subject: dto.subject,
-        bodyHtml: dto.bodyHtml,
+        bodyHtml,
         isRead: true,
         sendStatus: "DRAFT",
       },

@@ -12,6 +12,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { LabelsModule } from "./modules/labels/labels.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 import { SearchModule } from "./modules/search/search.module";
+import { SignaturesModule } from "./modules/signatures/signatures.module";
 import { SyncModule } from "./modules/sync/sync.module";
 import { ThreadsModule } from "./modules/threads/threads.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -32,6 +33,7 @@ import { UsersModule } from "./modules/users/users.module";
     SearchModule,
     ContactsModule,
     AiModule,
+    SignaturesModule,
   ],
   providers: [
     // CSRF applies globally to every mutating route; safe methods pass.
