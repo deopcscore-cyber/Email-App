@@ -165,6 +165,16 @@ Environment variables:
 | Variable | Value | Visible to |
 |---|---|---|
 | `API_URL` | `https://${{api.RAILWAY_PUBLIC_DOMAIN}}` | **build** (see note above) |
+| `PORT` | `3000` | runtime |
+
+Same reasoning as the api service's `PORT`: the Dockerfile sets
+`ENV PORT=3000` as a default, but Railway's own assigned `$PORT`
+overrides it at runtime and can be a different value (observed: 8080),
+while the domain's `targetPort` stays fixed at whatever you set when
+creating it (3000). The Next.js standalone server always honors
+`process.env.PORT`, so an unpinned `PORT` here is a real "app boots fine,
+edge proxy gets nothing on the port it's routing to" failure mode, not a
+theoretical one — this is exactly what happened on first deploy.
 
 Generate a public domain for this service (Settings → Networking →
 Generate Domain) — that's the URL end users hit, and the value the api
@@ -220,10 +230,12 @@ railway variables --service worker \
 
 # web
 railway add --service web --repo <owner>/<repo>
-railway domain --service web        # generates a public domain, prints it
-railway variables --service web --set API_URL='https://${{api.RAILWAY_PUBLIC_DOMAIN}}'
+railway domain --service web --port 3000   # generates a public domain, prints it
+railway variables --service web \
+  --set API_URL='https://${{api.RAILWAY_PUBLIC_DOMAIN}}' \
+  --set PORT=3000
 
-railway domain --service api        # generates api's public domain
+railway domain --service api --port 4000   # generates api's public domain
 railway variables --service api --set APP_ORIGIN='https://${{web.RAILWAY_PUBLIC_DOMAIN}}'
 ```
 
