@@ -81,6 +81,23 @@ async function main() {
     },
   });
 
+  // Second connected mailbox, for exercising the multi-account UI in dev.
+  const WORK_EMAIL = process.env.SEED_WORK_EMAIL ?? "dami@brightlabs.io";
+  await prisma.emailAccount.create({
+    data: {
+      userId: user.id,
+      provider: "MICROSOFT",
+      providerAccountId: `seed-work-${user.id}`,
+      email: WORK_EMAIL,
+      displayName: `${me.name} (Work)`,
+      encryptedRefreshToken: "seed-not-a-real-token",
+      scopes: [],
+      syncStatus: "ACTIVE",
+      color: "#3B82F6",
+      lastSyncedAt: new Date(now),
+    },
+  });
+
   // Contacts power recipient autocomplete, ranked by interactions.
   for (const [i, person] of Object.values(people).entries()) {
     await prisma.contact.create({

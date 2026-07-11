@@ -27,14 +27,16 @@ const VIEW_TITLES: Record<MailView, string> = {
 export function EmailList({
   view,
   labelId,
+  accountId,
 }: {
   view: MailView;
   labelId?: string;
+  accountId?: string;
 }) {
   const [tab, setTab] = useState<ListTab>("focused");
   const effectiveTab = view === "inbox" && labelId === undefined ? tab : undefined;
   const { data, isPending, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useThreads(view, effectiveTab, labelId);
+    useThreads(view, effectiveTab, labelId, accountId);
   const triage = useTriageThread();
   const { selectedId, select } = useMailSelection();
   const { setPaletteOpen } = useUi();
@@ -176,7 +178,7 @@ export function EmailList({
           </div>
         ) : (
           <motion.div
-            key={`${view}:${effectiveTab ?? "all"}:${labelId ?? ""}`}
+            key={`${view}:${effectiveTab ?? "all"}:${labelId ?? ""}:${accountId ?? ""}`}
             variants={staggerChildren(0.03)}
             initial="hidden"
             animate="show"

@@ -11,6 +11,7 @@ import {
   Mail,
   PenLine,
   Send,
+  Settings,
   Star,
   Tag,
   Trash2,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { MailView } from "@novamail/shared";
+import { AccountSwitcher } from "@/features/accounts/components/account-switcher";
 import { useSession } from "@/features/auth/use-session";
 import { useCompose } from "@/features/compose/compose-context";
 import { useLabels } from "@/features/labels/use-labels";
@@ -91,6 +93,10 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         <PenLine className="size-4" aria-hidden />
         {!collapsed && "Compose"}
       </motion.button>
+
+      {!collapsed && user !== undefined && (
+        <AccountSwitcher accounts={user.accounts} />
+      )}
 
       {/* Folders */}
       <ul className="flex flex-col gap-0.5">
@@ -204,7 +210,19 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
             )}
           </>
         )}
-        {!collapsed && <ThemeToggle />}
+        {!collapsed && (
+          <>
+            <Link
+              href="/settings/accounts"
+              title="Settings"
+              aria-label="Settings"
+              className="rounded-lg p-1.5 text-chrome-muted hover:bg-white/5 hover:text-white"
+            >
+              <Settings className="size-4" aria-hidden />
+            </Link>
+            <ThemeToggle />
+          </>
+        )}
       </div>
     </nav>
   );

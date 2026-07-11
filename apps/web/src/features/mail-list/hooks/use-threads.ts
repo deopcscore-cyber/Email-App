@@ -16,17 +16,22 @@ import { fetchCounts, fetchThreads, patchThread } from "../api/threads.api";
 
 export const threadKeys = {
   all: ["threads"] as const,
-  list: (view: MailView, tab?: ListTab, labelId?: string) =>
-    ["threads", "list", view, tab ?? null, labelId ?? null] as const,
+  list: (view: MailView, tab?: ListTab, labelId?: string, accountId?: string) =>
+    ["threads", "list", view, tab ?? null, labelId ?? null, accountId ?? null] as const,
   detail: (id: string) => ["threads", "detail", id] as const,
   counts: ["threads", "counts"] as const,
 };
 
-export function useThreads(view: MailView, tab?: ListTab, labelId?: string) {
+export function useThreads(
+  view: MailView,
+  tab?: ListTab,
+  labelId?: string,
+  accountId?: string,
+) {
   return useInfiniteQuery({
-    queryKey: threadKeys.list(view, tab, labelId),
+    queryKey: threadKeys.list(view, tab, labelId, accountId),
     queryFn: ({ pageParam }) =>
-      fetchThreads({ view, tab, labelId, cursor: pageParam }),
+      fetchThreads({ view, tab, labelId, accountId, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });

@@ -14,11 +14,13 @@ export function fetchThreads(params: {
   tab?: ListTab;
   cursor?: string;
   labelId?: string;
+  accountId?: string;
 }): Promise<ThreadPageDto> {
   const qs = new URLSearchParams({ view: params.view });
   if (params.tab !== undefined) qs.set("tab", params.tab);
   if (params.cursor !== undefined) qs.set("cursor", params.cursor);
   if (params.labelId !== undefined) qs.set("labelId", params.labelId);
+  if (params.accountId !== undefined) qs.set("accountId", params.accountId);
   return api<ThreadPageDto>(`/threads?${qs.toString()}`);
 }
 

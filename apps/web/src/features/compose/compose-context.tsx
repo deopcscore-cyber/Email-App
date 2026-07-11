@@ -11,11 +11,12 @@ import type {
   Address,
   ComposeMode,
   DraftDto,
+  EmailAccountDto,
   ThreadDetailDto,
 } from "@novamail/shared";
 import { toast } from "sonner";
 import { useSession } from "@/features/auth/use-session";
-import { createDraft } from "./api/compose.api";
+import { createDraft, deleteDraft } from "./api/compose.api";
 
 function quoteForForward(thread: ThreadDetailDto): string {
   const last = thread.messages[thread.messages.length - 1];
@@ -30,15 +31,28 @@ function quoteForForward(thread: ThreadDetailDto): string {
   );
 }
 
+interface ComposeFields {
+  to: Address[];
+  cc: Address[];
+  bcc: Address[];
+  subject: string;
+  bodyHtml: string;
+}
+
 interface ComposeContextValue {
   draft: DraftDto | null;
   isOpen: boolean;
-  openNew: () => void;
+  accounts: EmailAccountDto[];
+  openNew: (accountId?: string) => void;
   openFromThread: (
     thread: ThreadDetailDto,
     mode: Exclude<ComposeMode, "new">,
     options?: { bodyHtml?: string },
   ) => void;
+  /** Recreates the current "new" draft under a different sending account,
+   * preserving whatever the user has typed so far. Replies/forwards are
+   * pinned to the thread's own account and never offer this. */
+  switchFromAccount: (accountId: string, fields: ComposeFields) => void;
   reopenDraft: (draft: DraftDto) => void;
   close: () => void;
 }
@@ -48,14 +62,17 @@ const ComposeContext = createContext<ComposeContextValue | null>(null);
 export function ComposeProvider({ children }: { children: React.ReactNode }) {
   const { data: user } = useSession();
   const [draft, setDraft] = useState<DraftDto | null>(null);
+  const accounts = useMemo(() => user?.accounts ?? [], [user]);
 
-  const accountId = user?.accounts[0]?.id;
-  const myEmail = user?.accounts[0]?.email;
+  const defaultAccountId = accounts[0]?.id;
 
   const create = useCallback(
     async (
-      input: Omit<Parameters<typeof createDraft>[0], "accountId">,
+      input: Omit<Parameters<typeof createDraft>[0], "accountId"> & {
+        accountId?: string;
+      },
     ): Promise<void> => {
+      const accountId = input.accountId ?? defaultAccountId;
       if (accountId === undefined) {
         toast.error("Connect an email account first");
         return;
@@ -67,12 +84,33 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
         toast.error("Couldn't create the draft. Try again.");
       }
     },
-    [accountId],
+    [defaultAccountId],
   );
 
-  const openNew = useCallback(() => {
-    void create({ mode: "new", to: [], cc: [], bcc: [], subject: "", bodyHtml: "" });
-  }, [create]);
+  const openNew = useCallback(
+    (accountId?: string) => {
+      void create({
+        mode: "new",
+        to: [],
+        cc: [],
+        bcc: [],
+        subject: "",
+        bodyHtml: "",
+        accountId,
+      });
+    },
+    [create],
+  );
+
+  const switchFromAccount = useCallback(
+    (accountId: string, fields: ComposeFields) => {
+      const previousId = draft?.id;
+      void create({ mode: "new", ...fields, accountId }).then(() => {
+        if (previousId !== undefined) void deleteDraft(previousId);
+      });
+    },
+    [create, draft?.id],
+  );
 
   const openFromThread = useCallback(
     (
@@ -82,6 +120,12 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
     ) => {
       const last = thread.messages[thread.messages.length - 1];
       if (last === undefined) return;
+
+      // The reply must go out from the mailbox the thread lives in, not
+      // whichever account happens to be first — otherwise "me" in the
+      // recipient math below is wrong for every account but the first.
+      const threadAccount = accounts.find((a) => a.id === thread.accountId);
+      const myEmail = threadAccount?.email;
 
       if (mode === "forward") {
         void create({
@@ -93,6 +137,7 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
             ? thread.subject
             : `Fwd: ${thread.subject}`,
           bodyHtml: options?.bodyHtml ?? quoteForForward(thread),
+          accountId: thread.accountId,
         });
         return;
       }
@@ -116,9 +161,10 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
           ? thread.subject
           : `Re: ${thread.subject}`,
         bodyHtml: options?.bodyHtml ?? "",
+        accountId: thread.accountId,
       });
     },
-    [create, myEmail],
+    [create, accounts],
   );
 
   const reopenDraft = useCallback((d: DraftDto) => setDraft(d), []);
@@ -128,12 +174,14 @@ export function ComposeProvider({ children }: { children: React.ReactNode }) {
     () => ({
       draft,
       isOpen: draft !== null,
+      accounts,
       openNew,
       openFromThread,
+      switchFromAccount,
       reopenDraft,
       close,
     }),
-    [draft, openNew, openFromThread, reopenDraft, close],
+    [draft, accounts, openNew, openFromThread, switchFromAccount, reopenDraft, close],
   );
 
   return (

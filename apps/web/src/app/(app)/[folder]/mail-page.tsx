@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 export function MailPage({ view }: { view: MailView }) {
   const searchParams = useSearchParams();
   const labelId = searchParams.get("label") ?? undefined;
+  const accountId = searchParams.get("account") ?? undefined;
   const { selectedId } = useMailSelection();
 
   return (
@@ -21,7 +22,7 @@ export function MailPage({ view }: { view: MailView }) {
           selectedId !== null && "max-md:hidden",
         )}
       >
-        <EmailList view={view} labelId={labelId} />
+        <EmailList view={view} labelId={labelId} accountId={accountId} />
       </div>
       <ThreadView />
     </div>

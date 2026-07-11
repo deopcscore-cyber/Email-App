@@ -55,7 +55,8 @@ function scheduleOptions(): { label: string; at: Date }[] {
 }
 
 export function ComposeModal() {
-  const { draft, isOpen, close, reopenDraft } = useCompose();
+  const { draft, isOpen, close, reopenDraft, accounts, switchFromAccount } =
+    useCompose();
   const queryClient = useQueryClient();
 
   useOverlayScope(isOpen);
@@ -263,6 +264,40 @@ export function ComposeModal() {
           </header>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            {accounts.length > 1 && (
+              <div className="flex items-center gap-2 border-b border-border px-4 py-2 text-[13px]">
+                <span className="w-12 shrink-0 text-muted-foreground">From</span>
+                {draft.mode === "new" ? (
+                  <select
+                    aria-label="Send from account"
+                    value={draft.accountId}
+                    onChange={(e) => {
+                      const accountId = e.target.value;
+                      if (accountId === draft.accountId) return;
+                      switchFromAccount(accountId, {
+                        to,
+                        cc,
+                        bcc,
+                        subject,
+                        bodyHtml,
+                      });
+                    }}
+                    className="flex-1 bg-transparent text-[13px] outline-none"
+                  >
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.displayName ?? a.email} ({a.email})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="flex-1 text-muted-foreground">
+                    {accounts.find((a) => a.id === draft.accountId)?.email ??
+                      ""}
+                  </span>
+                )}
+              </div>
+            )}
             <RecipientField
               label="To"
               value={to}
