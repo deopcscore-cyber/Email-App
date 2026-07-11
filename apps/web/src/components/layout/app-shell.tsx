@@ -12,6 +12,7 @@ import { ShortcutsHelpModal } from "@/features/shortcuts/shortcuts-help-modal";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
 import { useMailEvents } from "@/hooks/use-mail-events";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { MobileNav } from "./mobile-nav";
 import { Sidebar } from "./sidebar";
 
 /**
@@ -59,9 +60,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <div className="flex h-dvh bg-chrome">
+    <div className="flex h-dvh flex-col bg-chrome md:flex-row">
       {!isMobile && <Sidebar collapsed={isTablet} />}
-      <main className="min-w-0 flex-1 p-2 pl-0 max-md:p-0">
+      {isMobile && <MobileNav />}
+      <main className="min-h-0 min-w-0 flex-1 p-2 pl-0 max-md:p-0">
         <div className="flex h-full overflow-hidden rounded-xl border border-border bg-background max-md:rounded-none">
           {children}
         </div>

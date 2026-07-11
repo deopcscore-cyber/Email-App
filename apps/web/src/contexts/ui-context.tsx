@@ -13,10 +13,12 @@ interface UiState {
   aiPanelOpen: boolean;
   paletteOpen: boolean;
   helpOpen: boolean;
+  mobileNavOpen: boolean;
   toggleAiPanel: () => void;
   setAiPanelOpen: (open: boolean) => void;
   setPaletteOpen: (open: boolean) => void;
   setHelpOpen: (open: boolean) => void;
+  setMobileNavOpen: (open: boolean) => void;
 }
 
 const UiContext = createContext<UiState | null>(null);
@@ -26,6 +28,7 @@ export function UiProvider({ children }: { children: React.ReactNode }) {
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const toggleAiPanel = useCallback(() => setAiPanelOpen((v) => !v), []);
 
@@ -34,12 +37,14 @@ export function UiProvider({ children }: { children: React.ReactNode }) {
       aiPanelOpen,
       paletteOpen,
       helpOpen,
+      mobileNavOpen,
       toggleAiPanel,
       setAiPanelOpen,
       setPaletteOpen,
       setHelpOpen,
+      setMobileNavOpen,
     }),
-    [aiPanelOpen, paletteOpen, helpOpen, toggleAiPanel],
+    [aiPanelOpen, paletteOpen, helpOpen, mobileNavOpen, toggleAiPanel],
   );
 
   return <UiContext.Provider value={value}>{children}</UiContext.Provider>;

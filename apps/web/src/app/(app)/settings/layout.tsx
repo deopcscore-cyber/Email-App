@@ -29,7 +29,7 @@ export default function SettingsLayout({
           <ArrowLeft className="size-3.5" aria-hidden />
           Back to inbox
         </Link>
-        <nav className="-mb-px flex gap-5">
+        <nav className="-mb-px flex gap-5 overflow-x-auto">
           {TABS.map((tab) => {
             const active = pathname === tab.href;
             return (

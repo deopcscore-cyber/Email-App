@@ -43,7 +43,7 @@ function ToolbarButton({
       title={label}
       whileTap={{ scale: 0.88 }}
       onClick={onClick}
-      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+      className="shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
     >
       {children}
     </motion.button>
@@ -146,7 +146,7 @@ export function ThreadView() {
       className="flex min-w-0 flex-1 flex-col max-md:absolute max-md:inset-0 max-md:z-10 max-md:bg-background"
     >
       {/* Toolbar */}
-      <header className="flex items-center gap-1 border-b border-border px-3 py-2">
+      <header className="flex items-center gap-1 overflow-x-auto border-b border-border px-3 py-2">
         <ToolbarButton label="Back to list" onClick={close}>
           <ArrowLeft className="size-4" aria-hidden />
         </ToolbarButton>
@@ -229,11 +229,14 @@ export function ThreadView() {
           type="button"
           whileTap={{ scale: 0.96 }}
           onClick={toggleAiPanel}
-          className="ml-auto flex items-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent-soft/70"
+          aria-label="AI Assistant"
+          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent-soft/70"
         >
           <Sparkles className="size-3.5" aria-hidden />
-          AI Assistant
-          <kbd className="rounded border border-accent/20 px-1 text-[10px]">⌘J</kbd>
+          <span className="max-md:hidden">AI Assistant</span>
+          <kbd className="rounded border border-accent/20 px-1 text-[10px] max-md:hidden">
+            ⌘J
+          </kbd>
         </motion.button>
       </header>
 
