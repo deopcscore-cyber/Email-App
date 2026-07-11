@@ -16,6 +16,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@novamail/shared": "workspace:*",
     "@prisma/client": "^6.5.0",
+    "bcryptjs": "^3.0.3",
     "bullmq": "^5.80.0",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.4.2",

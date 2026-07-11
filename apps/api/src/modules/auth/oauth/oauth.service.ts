@@ -95,7 +95,7 @@ export class OAuthService {
   /** Builds the provider redirect and persists state+verifier in Redis. */
   async beginAuthorization(
     provider: Provider,
-    linkToUserId?: string,
+    linkToUserId: string,
   ): Promise<string> {
     if (!this.isConfigured(provider)) {
       throw new BadRequestException(
@@ -137,7 +137,7 @@ export class OAuthService {
     provider: Provider,
     code: string,
     state: string,
-  ): Promise<{ identity: OAuthIdentity; linkToUserId?: string }> {
+  ): Promise<{ identity: OAuthIdentity; linkToUserId: string }> {
     const key = `oauth:state:${state}`;
     const raw = await this.redis.client.getdel(key); // single-use state
     if (raw === null) {

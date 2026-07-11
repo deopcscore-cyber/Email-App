@@ -1,8 +1,15 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { linkAccountUrl } from "@/features/auth/api";
 import { GoogleLogo, MicrosoftLogo } from "@/features/auth/components/provider-logos";
 import { useSession } from "@/features/auth/use-session";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  cancelled: "Connecting was cancelled. Try again whenever you're ready.",
+  provider: "The provider returned an error. Please try again.",
+  missing_params: "The connection response was incomplete. Please try again.",
+};
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Connecting…",
@@ -26,6 +33,10 @@ const connectButtonClass =
 
 export default function AccountsSettingsPage() {
   const { data: user } = useSession();
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+  const errorMessage =
+    error === null ? null : (ERROR_MESSAGES[error] ?? "Something went wrong connecting that account.");
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-8">
@@ -36,6 +47,15 @@ export default function AccountsSettingsPage() {
         Every account you connect shows up in your unified inbox. You can
         also filter to one account at a time from the sidebar.
       </p>
+
+      {errorMessage !== null && (
+        <p
+          role="alert"
+          className="mt-4 rounded-lg border border-danger/20 bg-danger/10 px-4 py-2.5 text-[13px] text-danger"
+        >
+          {errorMessage}
+        </p>
+      )}
 
       <ul className="mt-6 flex flex-col gap-2">
         {user?.accounts.map((account) => (

@@ -89,11 +89,100 @@ describe("Auth + CSRF (e2e)", () => {
     expect(after.status).toBe(401);
   });
 
+  it("rejects /auth/google when there is no signed-in session", async () => {
+    const res = await request(app.getHttpServer()).get("/api/v1/auth/google");
+    expect(res.status).toBe(401);
+  });
+
   it("redirects /auth/google to Google with PKCE params when configured", async () => {
     // Unconfigured in the test env (no client id) — asserts the guard rail
-    // rather than a real provider redirect.
-    const res = await request(app.getHttpServer()).get("/api/v1/auth/google");
+    // rather than a real provider redirect. Connecting requires a session.
+    const { cookieHeader } = await seedSignedInUser(app);
+    const res = await request(app.getHttpServer())
+      .get("/api/v1/auth/google")
+      .set("Cookie", cookieHeader);
     expect(res.status).toBe(400);
     expect(res.body.error.message).toMatch(/not configured/i);
+  });
+
+  it("registers a new NovaMail account with username/password", async () => {
+    const res = await request(app.getHttpServer())
+      .post("/api/v1/auth/register")
+      .send({
+        username: "newuser1",
+        email: "newuser1@novamail.dev",
+        name: "New User",
+        password: "correct-horse-battery",
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ email: "newuser1@novamail.dev", accounts: [] });
+    expect(res.headers["set-cookie"]).toBeDefined();
+  });
+
+  it("rejects registration with a taken username", async () => {
+    await request(app.getHttpServer()).post("/api/v1/auth/register").send({
+      username: "dupeuser",
+      email: "dupe1@novamail.dev",
+      name: "Dupe One",
+      password: "correct-horse-battery",
+    });
+    const res = await request(app.getHttpServer()).post("/api/v1/auth/register").send({
+      username: "dupeuser",
+      email: "dupe2@novamail.dev",
+      name: "Dupe Two",
+      password: "correct-horse-battery",
+    });
+    expect(res.status).toBe(409);
+  });
+
+  it("upgrades an existing OAuth-created row in place when registering with the same email", async () => {
+    const { userId, accountId } = await seedSignedInUser(app, {
+      email: "claimed@novamail.dev",
+    });
+
+    const res = await request(app.getHttpServer())
+      .post("/api/v1/auth/register")
+      .send({
+        username: "claimeduser",
+        email: "claimed@novamail.dev",
+        name: "Claimed User",
+        password: "correct-horse-battery",
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe(userId);
+    expect(res.body.accounts).toEqual([expect.objectContaining({ id: accountId })]);
+  });
+
+  it("logs in with a valid username/password", async () => {
+    await request(app.getHttpServer()).post("/api/v1/auth/register").send({
+      username: "loginuser",
+      email: "loginuser@novamail.dev",
+      name: "Login User",
+      password: "correct-horse-battery",
+    });
+
+    const res = await request(app.getHttpServer()).post("/api/v1/auth/login").send({
+      username: "loginuser",
+      password: "correct-horse-battery",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ email: "loginuser@novamail.dev" });
+  });
+
+  it("rejects login with a wrong password", async () => {
+    await request(app.getHttpServer()).post("/api/v1/auth/register").send({
+      username: "wrongpassuser",
+      email: "wrongpass@novamail.dev",
+      name: "Wrong Pass",
+      password: "correct-horse-battery",
+    });
+
+    const res = await request(app.getHttpServer()).post("/api/v1/auth/login").send({
+      username: "wrongpassuser",
+      password: "not-the-password",
+    });
+    expect(res.status).toBe(401);
   });
 });

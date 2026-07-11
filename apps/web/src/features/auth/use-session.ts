@@ -2,8 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import type { SessionUserDto, UpdateSettingsDto } from "@novamail/shared";
-import { fetchSession, logout, updateSettings } from "./api";
+import type {
+  LoginDto,
+  RegisterDto,
+  SessionUserDto,
+  UpdateSettingsDto,
+} from "@novamail/shared";
+import { fetchSession, login, logout, register, updateSettings } from "./api";
 
 export const sessionQueryKey = ["auth", "session"] as const;
 
@@ -25,6 +30,30 @@ export function useUpdateSettings() {
       queryClient.setQueryData<SessionUserDto>(sessionQueryKey, (prev) =>
         prev === undefined ? prev : { ...prev, settings },
       );
+    },
+  });
+}
+
+export function useRegister() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  return useMutation({
+    mutationFn: (dto: RegisterDto) => register(dto),
+    onSuccess: (user) => {
+      queryClient.setQueryData<SessionUserDto>(sessionQueryKey, user);
+      router.replace("/settings/accounts");
+    },
+  });
+}
+
+export function useLogin() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  return useMutation({
+    mutationFn: (dto: LoginDto) => login(dto),
+    onSuccess: (user) => {
+      queryClient.setQueryData<SessionUserDto>(sessionQueryKey, user);
+      router.replace("/inbox");
     },
   });
 }

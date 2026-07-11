@@ -16,8 +16,8 @@ export interface OAuthProviderConfig {
 export interface OAuthState {
   provider: Provider;
   codeVerifier: string;
-  /** Set when an already-authenticated user is linking another mailbox. */
-  linkToUserId?: string;
+  /** The already-authenticated user connecting this mailbox. */
+  linkToUserId: string;
 }
 
 /** Normalized result of a completed code exchange. */

@@ -2,7 +2,7 @@
 
 import { motion, type Variants } from "framer-motion";
 import { Mail, Sparkles, Zap, Inbox, Search, ShieldCheck } from "lucide-react";
-import { ProviderButtons } from "@/features/auth/components/provider-buttons";
+import { AuthForm } from "@/features/auth/components/auth-form";
 
 const FEATURES = [
   { icon: Sparkles, label: "AI Summaries" },
@@ -21,7 +21,7 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" } },
 };
 
-export function LoginScreen({ errorMessage }: { errorMessage: string | null }) {
+export function LoginScreen() {
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[oklch(0.13_0.032_278)] px-6">
       {/* Ambient violet glow, matching the reference design's atmosphere */}
@@ -56,18 +56,8 @@ export function LoginScreen({ errorMessage }: { errorMessage: string | null }) {
         </motion.p>
 
         <motion.div variants={item} className="mt-10 w-full">
-          <ProviderButtons />
+          <AuthForm />
         </motion.div>
-
-        {errorMessage !== null && (
-          <motion.p
-            variants={item}
-            role="alert"
-            className="mt-4 w-full rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2.5 text-sm text-red-300"
-          >
-            {errorMessage}
-          </motion.p>
-        )}
 
         <motion.ul
           variants={item}

@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Logger,
@@ -11,8 +12,9 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
-import type { Provider, SessionUserDto } from "@novamail/shared";
-import { SESSION_COOKIE } from "@novamail/shared";
+import type { LoginDto, Provider, RegisterDto, SessionUserDto } from "@novamail/shared";
+import { SESSION_COOKIE, loginSchema, registerSchema } from "@novamail/shared";
+import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -55,6 +57,38 @@ export class AuthController {
     return dto;
   }
 
+  /** POST /auth/register — create (or claim) a NovaMail account. */
+  @Post("register")
+  async register(
+    @Body(new ZodValidationPipe(registerSchema)) dto: RegisterDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const userId = await this.auth.register(dto);
+    await this.sessions.create(userId, req.header("user-agent"), res);
+    const sessionUser = await this.auth.sessionUser(userId);
+    if (sessionUser === null) {
+      throw new UnauthorizedException("User no longer exists");
+    }
+    res.status(201).json(sessionUser);
+  }
+
+  /** POST /auth/login — username/password sign-in. */
+  @Post("login")
+  async login(
+    @Body(new ZodValidationPipe(loginSchema)) dto: LoginDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const userId = await this.auth.login(dto);
+    await this.sessions.create(userId, req.header("user-agent"), res);
+    const sessionUser = await this.auth.sessionUser(userId);
+    if (sessionUser === null) {
+      throw new UnauthorizedException("User no longer exists");
+    }
+    res.status(200).json(sessionUser);
+  }
+
   /** POST /auth/logout — destroy the current session. */
   @Post("logout")
   @UseGuards(SessionGuard)
@@ -69,8 +103,8 @@ export class AuthController {
   }
 
   /**
-   * GET /auth/:provider — begin sign-in (or mailbox link when a session
-   * already exists and ?intent=link).
+   * GET /auth/:provider — begin connecting a mailbox. Google/Microsoft are
+   * connect-only now: this always requires an existing NovaMail session.
    */
   @Get(":provider")
   async begin(
@@ -81,21 +115,15 @@ export class AuthController {
   ): Promise<void> {
     const provider = parseProvider(providerParam);
 
-    let linkToUserId: string | undefined;
-    if (intent === "link") {
-      const token = (req.cookies as Record<string, string | undefined>)[
-        SESSION_COOKIE
-      ];
-      const record = token !== undefined
-        ? await this.sessions.resolve(token)
-        : null;
-      if (record === null) {
-        throw new UnauthorizedException("Sign in before linking an account");
-      }
-      linkToUserId = record.userId;
+    const token = (req.cookies as Record<string, string | undefined>)[
+      SESSION_COOKIE
+    ];
+    const record = token !== undefined ? await this.sessions.resolve(token) : null;
+    if (record === null) {
+      throw new UnauthorizedException("Sign in before connecting an account");
     }
 
-    const url = await this.oauth.beginAuthorization(provider, linkToUserId);
+    const url = await this.oauth.beginAuthorization(provider, record.userId);
     res.redirect(url);
   }
 
@@ -112,7 +140,7 @@ export class AuthController {
     const appOrigin = process.env.APP_ORIGIN ?? "http://localhost:3000";
     const fail = (reason: string): void => {
       this.logger.warn(`OAuth callback failed: ${reason}`);
-      res.redirect(`${appOrigin}/login?error=${encodeURIComponent(reason)}`);
+      res.redirect(`${appOrigin}/settings/accounts?error=${encodeURIComponent(reason)}`);
     };
 
     if (providerError !== undefined) {
@@ -126,20 +154,11 @@ export class AuthController {
       const provider = parseProvider(providerParam);
       const { identity, linkToUserId } =
         await this.oauth.completeAuthorization(provider, code, state);
-      const userId = await this.auth.handleIdentity(identity, linkToUserId);
-
-      if (linkToUserId === undefined) {
-        await this.sessions.create(userId, req.header("user-agent"), res);
-      }
-      res.redirect(
-        linkToUserId === undefined
-          ? `${appOrigin}/inbox`
-          : `${appOrigin}/settings/accounts`,
-      );
+      await this.auth.handleIdentity(identity, linkToUserId);
+      res.redirect(`${appOrigin}/settings/accounts`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown";
       return fail(message);
     }
   }
-
 }

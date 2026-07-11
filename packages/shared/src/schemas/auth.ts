@@ -60,6 +60,28 @@ export const sessionUserSchema = z.object({
 });
 export type SessionUserDto = z.infer<typeof sessionUserSchema>;
 
+const usernameSchema = z
+  .string()
+  .min(3, "At least 3 characters")
+  .max(24, "At most 24 characters")
+  .regex(/^[a-zA-Z0-9_]+$/, "Letters, numbers, and underscores only");
+
+const passwordSchema = z.string().min(8, "At least 8 characters").max(128);
+
+export const registerSchema = z.object({
+  username: usernameSchema,
+  email: z.string().email(),
+  name: z.string().min(1).max(80),
+  password: passwordSchema,
+});
+export type RegisterDto = z.infer<typeof registerSchema>;
+
+export const loginSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+});
+export type LoginDto = z.infer<typeof loginSchema>;
+
 /** Uniform API error envelope. */
 export const apiErrorSchema = z.object({
   error: z.object({

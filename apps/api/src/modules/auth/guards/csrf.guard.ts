@@ -26,6 +26,10 @@ export class CsrfGuard implements CanActivate {
     if (req.path.startsWith("/api/v1/webhooks/")) {
       return true;
     }
+    // No session (and thus no CSRF cookie) exists yet before these succeed.
+    if (req.path === "/api/v1/auth/register" || req.path === "/api/v1/auth/login") {
+      return true;
+    }
 
     const cookie = (req.cookies as Record<string, string | undefined>)[
       CSRF_COOKIE

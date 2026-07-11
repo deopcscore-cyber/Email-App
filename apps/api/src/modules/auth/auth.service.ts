@@ -1,5 +1,11 @@
-import { ConflictException, Injectable, Logger } from "@nestjs/common";
-import type { SessionUserDto } from "@novamail/shared";
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { compare, hash } from "bcryptjs";
+import type { LoginDto, RegisterDto, SessionUserDto } from "@novamail/shared";
 import { QueueService } from "../../jobs/queue.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -7,10 +13,12 @@ import type { OAuthIdentity } from "./oauth/oauth.types";
 import { TokenVaultService } from "./token-vault.service";
 
 const ACCOUNT_COLORS = ["#6E56CF", "#3B82F6", "#10B981", "#F59E0B", "#EC4899"];
+const BCRYPT_ROUNDS = 12;
 
 /**
- * Owns the identity side of OAuth completion: user creation, mailbox
- * linking, and the session bootstrap payload.
+ * Owns account identity: username/password registration and login, OAuth
+ * mailbox linking (Google/Microsoft are connect-only now, never a sign-in
+ * path), and the session bootstrap payload.
  */
 @Injectable()
 export class AuthService {
@@ -24,15 +32,75 @@ export class AuthService {
   ) {}
 
   /**
-   * Completes sign-in or account-link. Returns the user id to bind the
-   * session to (for links, the existing user).
+   * Creates a NovaMail account, or -- if a row with this email already
+   * exists from before username/password login existed (an OAuth-created
+   * account) and hasn't been claimed yet -- upgrades it in place. This
+   * keeps any mailboxes/threads already connected to that email intact
+   * rather than orphaning them under a fresh duplicate row.
    */
+  async register(dto: RegisterDto): Promise<string> {
+    const existingByUsername = await this.prisma.user.findUnique({
+      where: { username: dto.username },
+      select: { id: true },
+    });
+    if (existingByUsername !== null) {
+      throw new ConflictException("That username is taken");
+    }
+
+    const existingByEmail = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true, passwordHash: true },
+    });
+    if (existingByEmail !== null && existingByEmail.passwordHash !== null) {
+      throw new ConflictException("That email is already registered");
+    }
+
+    const passwordHash = await hash(dto.password, BCRYPT_ROUNDS);
+
+    if (existingByEmail !== null) {
+      const upgraded = await this.prisma.user.update({
+        where: { id: existingByEmail.id },
+        data: { username: dto.username, passwordHash, name: dto.name },
+      });
+      this.logger.log(`Claimed existing account for ${dto.email}`);
+      return upgraded.id;
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        username: dto.username,
+        passwordHash,
+        name: dto.name,
+        settings: { create: {} },
+      },
+    });
+    return user.id;
+  }
+
+  async login(dto: LoginDto): Promise<string> {
+    const user = await this.prisma.user.findUnique({
+      where: { username: dto.username },
+      select: { id: true, passwordHash: true },
+    });
+    // Same generic failure whether the username doesn't exist or the
+    // password is wrong -- don't let this endpoint confirm which.
+    if (user === null || user.passwordHash === null) {
+      throw new UnauthorizedException("Invalid username or password");
+    }
+    const valid = await compare(dto.password, user.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException("Invalid username or password");
+    }
+    return user.id;
+  }
+
+  /** Attaches a connected mailbox to the given (already signed-in) user. */
   async handleIdentity(
     identity: OAuthIdentity,
-    linkToUserId?: string,
+    linkToUserId: string,
   ): Promise<string> {
-    const userId =
-      linkToUserId ?? (await this.findOrCreateUser(identity)).id;
+    const userId = linkToUserId;
 
     const existing = await this.prisma.emailAccount.findUnique({
       where: {
@@ -91,23 +159,6 @@ export class AuthService {
       `Connected ${identity.provider} mailbox ${identity.email} for user ${userId}`,
     );
     return userId;
-  }
-
-  private async findOrCreateUser(identity: OAuthIdentity) {
-    const existing = await this.prisma.user.findUnique({
-      where: { email: identity.email },
-    });
-    if (existing !== null) {
-      return existing;
-    }
-    return this.prisma.user.create({
-      data: {
-        email: identity.email,
-        name: identity.name,
-        avatarUrl: identity.avatarUrl,
-        settings: { create: {} },
-      },
-    });
   }
 
   private async nextAccountColor(userId: string): Promise<string> {
