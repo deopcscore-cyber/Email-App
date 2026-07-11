@@ -7,6 +7,7 @@
   "deploy": {
     "numReplicas": 1,
     "startCommand": "node dist/main.js",
+    "preDeployCommand": ["node_modules/.bin/prisma migrate deploy"],
     "healthcheckPath": "/api/v1/health",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",

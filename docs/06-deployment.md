@@ -108,11 +108,22 @@ reference — it resolves once the `web` service has a public domain
 generated (Settings → Networking → Generate Domain), so create the `web`
 service before finalizing this value.
 
-**Release command (migrations):** set the api service's release command to:
+**Release command (migrations):** set the api service's release command
+(Railway calls this `preDeployCommand`) to:
 
 ```
-pnpm --filter @novamail/api exec prisma migrate deploy
+node_modules/.bin/prisma migrate deploy
 ```
+
+This runs *inside the runtime container*, not the build stage — there's no
+pnpm, no workspace context, and no `apps/` layout there, just the pruned
+`/prod/api` tree the Dockerfile produces. That's why it can't be
+`pnpm --filter @novamail/api exec prisma migrate deploy` (pnpm isn't
+installed in the runtime image) and why the Dockerfile moves `prisma` from
+a devDependency to a runtime dependency and copies `apps/api/prisma/`
+(schema + migrations) into the deployed tree explicitly — `pnpm deploy`
+only follows the package.json dependency graph, not arbitrary source
+files.
 
 Do **not** bake `prisma migrate deploy` into the container's `CMD` — Railway
 runs the release command once per deploy, before new instances take

@@ -37,6 +37,15 @@ RUN cp -r apps/api/dist /prod/api/dist
 RUN mkdir -p /prod/api/node_modules/@novamail/shared \
   && cp -r packages/shared/dist /prod/api/node_modules/@novamail/shared/dist
 
+# The release command (`prisma migrate deploy`, run by Railway before the
+# new deployment takes traffic — see railway.api.json) executes inside this
+# same runtime image, which has no pnpm/workspace context. `prisma` moved to
+# a runtime dependency (apps/api/package.json) so its CLI ships in the
+# pruned install; the schema + migrations directory still needs copying in
+# explicitly since `pnpm deploy` only follows the package.json dependency
+# graph, not arbitrary source files.
+RUN cp -r apps/api/prisma /prod/api/prisma
+
 # `prisma generate` (above) writes the generated client into whichever
 # node_modules pnpm resolved @prisma/client into for THIS install (its own
 # isolated store folder) — `pnpm deploy` recreates node_modules from the
