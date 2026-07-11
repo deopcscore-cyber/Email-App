@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { EmailAccount, Prisma } from "@prisma/client";
+import type { Address } from "@novamail/shared";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EventsService } from "../events/events.service";
 import { PushService } from "../push/push.service";
@@ -14,6 +15,26 @@ import { TokenBrokerService } from "./token-broker.service";
 /** Accounts created by the dev seed have no real provider behind them. */
 export function isSeedAccount(account: { encryptedRefreshToken: string }): boolean {
   return account.encryptedRefreshToken.startsWith("seed-");
+}
+
+// Automated/bulk senders (newsletters, receipts, notifications) that should
+// never land in Focused even when they happen to address the account
+// directly -- these prefixes are near-universal across ESPs and ticketing
+// systems, so a false negative here is far more likely than a false positive.
+const BULK_SENDER_PATTERN =
+  /^(no-?reply|do-?not-?reply|notifications?|newsletter|bounces?|mailer-daemon|digest|updates?|marketing|automated|alerts?)@/i;
+
+/**
+ * Heuristic "Focused" classifier: no per-message LLM call (too slow/costly
+ * for a 2k-message backfill), just the two signals real priority-inbox
+ * implementations lean on most -- addressed directly (not just cc'd) to a
+ * human-looking sender.
+ */
+function isLikelyFocused(accountEmail: string, from: Address, to: Address[]): boolean {
+  const directlyAddressed = to.some(
+    (a) => a.email.toLowerCase() === accountEmail.toLowerCase(),
+  );
+  return directlyAddressed && !BULK_SENDER_PATTERN.test(from.email);
 }
 
 @Injectable()
@@ -140,7 +161,7 @@ export class SyncService {
       if (existing !== null) {
         await this.prisma.message.delete({ where: { id: existing.id } });
         touchedThreads.add(existing.threadId);
-        await this.recomputeThread(existing.threadId);
+        await this.recomputeThread(existing.threadId, account.email);
       }
     }
 
@@ -296,13 +317,14 @@ export class SyncService {
       },
     });
 
-    await this.recomputeThread(thread.id, msg.folder);
+    await this.recomputeThread(thread.id, account.email, msg.folder);
     return { threadId: thread.id, isNewInboxMessage };
   }
 
   /** Recomputes denormalized thread fields from its messages. */
   private async recomputeThread(
     threadId: string,
+    accountEmail: string,
     latestFolder?: ProviderMessage["folder"],
   ): Promise<void> {
     const messages = await this.prisma.message.findMany({
@@ -310,6 +332,7 @@ export class SyncService {
       orderBy: { receivedAt: "desc" },
       select: {
         fromAddress: true,
+        toAddresses: true,
         snippet: true,
         isRead: true,
         receivedAt: true,
@@ -338,6 +361,11 @@ export class SyncService {
         unreadCount: messages.filter((m) => !m.isRead).length,
         hasAttachments: messages.some((m) => m.attachments.length > 0),
         lastMessageAt: latest.receivedAt,
+        isPriority: isLikelyFocused(
+          accountEmail,
+          latest.fromAddress as Address,
+          latest.toAddresses as Address[],
+        ),
         ...(latestFolder !== undefined && { folder: latestFolder }),
       },
     });

@@ -20,6 +20,7 @@ import {
 import { attachmentUrl } from "../lib/attachment-url";
 import { transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { MessageBody } from "./message-body";
 
 const PREVIEWABLE_TYPES = new Set(["application/pdf"]);
 
@@ -173,11 +174,7 @@ export function MessageCard({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 pl-16 max-md:pl-4">
-              {/* Phase 4 renders sanitized bodyHtml in a sandboxed iframe;
-                  seeded messages are plain text. */}
-              <div className="whitespace-pre-wrap text-[13.5px] leading-6 text-foreground/90">
-                {message.bodyText ?? ""}
-              </div>
+              <MessageBody bodyHtml={message.bodyHtml} bodyText={message.bodyText} />
 
               {message.attachments.length > 0 && (
                 <div className="mt-4 border-t border-border pt-3">
