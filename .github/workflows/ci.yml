@@ -1,0 +1,190 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  PNPM_VERSION: "10.33.0"
+  NODE_VERSION: "22"
+
+jobs:
+  checks:
+    name: Typecheck, build, unit + integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: novamail
+          POSTGRES_PASSWORD: novamail
+          POSTGRES_DB: novamail_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U novamail"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://novamail:novamail@localhost:5432/novamail_test
+      TEST_REDIS_URL: redis://localhost:6379/1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @novamail/api exec prisma generate
+
+      - name: Apply test database migrations
+        run: pnpm --filter @novamail/api exec prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: API tests (Jest + Supertest)
+        run: pnpm --filter @novamail/api test
+
+      - name: Web tests (Vitest + Testing Library)
+        run: pnpm --filter @novamail/web test
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    needs: checks
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: novamail
+          POSTGRES_PASSWORD: novamail
+          POSTGRES_DB: novamail
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U novamail"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://novamail:novamail@localhost:5432/novamail
+      REDIS_URL: redis://localhost:6379/0
+      APP_ORIGIN: http://localhost:3000
+      API_URL: http://localhost:4000
+      TOKEN_ENCRYPTION_KEY: 2d498dee3493b502e0477c044a885c16f9e15f0ec26f928ccddd04c56c4c402f
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      MICROSOFT_CLIENT_ID: ""
+      MICROSOFT_CLIENT_SECRET: ""
+      OPENAI_API_KEY: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Generate Prisma client
+        run: pnpm --filter @novamail/api exec prisma generate
+
+      - name: Apply migrations
+        run: pnpm --filter @novamail/api exec prisma migrate deploy
+
+      - name: Seed dev database
+        run: node prisma/seed.mjs
+        working-directory: apps/api
+
+      - name: Build api and web
+        run: pnpm build
+
+      - name: Start api
+        run: nohup node dist/main.js > api.log 2>&1 &
+        working-directory: apps/api
+
+      - name: Start web
+        run: nohup pnpm start > web.log 2>&1 &
+        working-directory: apps/web
+        env:
+          PORT: "3000"
+
+      - name: Wait for stack to be ready
+        run: |
+          npx wait-on -t 60000 http://localhost:4000/api/v1/health http://localhost:3000
+
+      - name: Run Playwright tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload service logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-logs
+          path: |
+            apps/api/api.log
+            apps/web/web.log
+          retention-days: 7

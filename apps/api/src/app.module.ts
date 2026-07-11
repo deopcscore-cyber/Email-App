@@ -8,6 +8,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { CsrfGuard } from "./modules/auth/guards/csrf.guard";
 import { ContactsModule } from "./modules/contacts/contacts.module";
 import { EventsModule } from "./modules/events/events.module";
+import { HealthModule } from "./modules/health/health.module";
 import { LabelsModule } from "./modules/labels/labels.module";
 import { MessagesModule } from "./modules/messages/messages.module";
 import { SearchModule } from "./modules/search/search.module";
@@ -20,6 +21,7 @@ import { UsersModule } from "./modules/users/users.module";
     ConfigModule,
     PrismaModule,
     RedisModule,
+    HealthModule,
     EventsModule,
     SyncModule,
     AuthModule,

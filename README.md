@@ -90,6 +90,7 @@ counts) but starts from a known state either way.
 3. [Database Schema](docs/03-database-schema.md)
 4. [User Flows](docs/04-user-flows.md)
 5. [API Design](docs/05-api-design.md)
+6. [Deployment](docs/06-deployment.md)
 
 ## Build phases
 
@@ -102,4 +103,14 @@ counts) but starts from a known state either way.
 | 5 | AI integration — streaming assistant, NL search, briefing, smart labels | ✅ |
 | 6 | Animations & micro-interactions — motion system, reduced-motion support | ✅ |
 | 7 | Testing — Jest/Supertest (API), Vitest/RTL (web), Playwright (e2e) | ✅ |
-| 8 | Deployment | ⏳ |
+| 8 | Deployment — Vercel (web), Railway (api/worker/Postgres/Redis), GitHub Actions CI | ✅ |
+
+## Deployment
+
+Web ships to Vercel, the API and background worker ship to Railway as two
+services built from the same `apps/api/Dockerfile`, and GitHub Actions gates
+every push with lint/typecheck/build/test/e2e. Full runbook — environment
+variables per service, OAuth redirect URIs, migration strategy, post-deploy
+checklist — is in [docs/06-deployment.md](docs/06-deployment.md).
+
+CI workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
