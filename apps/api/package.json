@@ -30,9 +30,14 @@
     "@novamail/config": "workspace:*",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
     "@types/multer": "^2.2.0",
     "@types/node": "^22.10.0",
+    "@types/supertest": "^7.2.0",
+    "jest": "^30.4.2",
     "prisma": "^6.5.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.11",
     "typescript": "^5.7.0"
   }
 }

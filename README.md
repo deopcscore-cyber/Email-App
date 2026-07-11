@@ -17,10 +17,11 @@ and an interface designed to feel fast, minimal, and expensive.
 
 ```
 apps/web        Next.js frontend (proxies /api/* to the backend)
-apps/api        NestJS backend (HTTP now; worker entrypoint arrives in Phase 4)
+apps/api        NestJS backend — HTTP API (main.ts) + BullMQ worker (worker.ts)
 packages/shared Zod schemas + constants shared by both sides
 packages/config Shared tsconfig base
-docs/           Architecture documentation (Phase 1)
+docs/           Architecture documentation
+e2e/            Playwright end-to-end suite
 ```
 
 ## Local development
@@ -41,9 +42,46 @@ Required in `apps/api/.env`:
   Gmail API enabled
 - `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` — Azure app registration
   with redirect URI `http://localhost:3000/api/v1/auth/microsoft/callback`
+- `OPENAI_API_KEY` — powers every AI feature (summaries, replies, rewrite,
+  natural-language search, daily briefing); the app runs without it, AI
+  endpoints just 503
 
 The web app proxies `/api/*` to the API, so the session cookie is first-party
 and OAuth callbacks share the web origin.
+
+## Testing
+
+Three layers, matching the stack each targets:
+
+| Layer | Tool | Scope |
+|---|---|---|
+| `apps/api` unit + integration | Jest + Supertest | Pure logic (token vault, MIME builder, search parser, CSRF guard) and full HTTP-level flows against a real Postgres/Redis (auth+CSRF, threads/triage, drafts→send→undo, search) |
+| `apps/web` unit + component | Vitest + Testing Library | Formatters, the keyboard scope system (via real DOM keydown events), `EmailRow`, `RecipientField` |
+| `e2e/` end-to-end | Playwright | The real app in a real browser: auth gate, inbox, keyboard shortcuts, compose/send/undo, search — against a running API + web stack |
+
+```bash
+# API — spins up nothing itself; needs a dedicated test database once:
+createdb novamail_test  # or: psql -c "CREATE DATABASE novamail_test OWNER novamail;"
+DATABASE_URL=postgresql://novamail:novamail@localhost:5432/novamail_test \
+  pnpm --filter @novamail/api exec prisma migrate deploy
+pnpm --filter @novamail/api test        # Jest; uses TEST_DATABASE_URL/TEST_REDIS_URL if set
+
+# Web — no backend required, everything is mocked/rendered in jsdom
+pnpm --filter @novamail/web test        # Vitest
+
+# End-to-end — requires the real stack running and seeded:
+pnpm db:up                              # or local postgres/redis
+pnpm --filter @novamail/api exec node prisma/seed.mjs
+pnpm dev                                # api :4000, web :3000 (separate terminal)
+pnpm test:e2e                           # Playwright, reads e2e/
+```
+
+`pnpm test` (root) runs the Jest and Vitest suites via Turborepo; Playwright is
+separate (`test:e2e`) since it depends on a live, seeded stack rather than
+booting one itself. Re-seed (`node prisma/seed.mjs`) before an e2e run if a
+prior run has mutated the dev mailbox (archived/starred/sent threads) — the
+suite is written to tolerate that (e.g. it asserts count deltas, not absolute
+counts) but starts from a known state either way.
 
 ## Documentation
 
@@ -63,5 +101,5 @@ and OAuth callbacks share the web origin.
 | 4 | Email features — sync engine, compose, undo/schedule send, snooze, search, SSE | ✅ |
 | 5 | AI integration — streaming assistant, NL search, briefing, smart labels | ✅ |
 | 6 | Animations & micro-interactions — motion system, reduced-motion support | ✅ |
-| 7 | Testing | ⏳ |
+| 7 | Testing — Jest/Supertest (API), Vitest/RTL (web), Playwright (e2e) | ✅ |
 | 8 | Deployment | ⏳ |

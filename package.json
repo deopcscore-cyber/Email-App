@@ -11,11 +11,13 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:e2e": "playwright test",
     "db:up": "docker compose up -d postgres redis",
     "db:migrate": "pnpm --filter @novamail/api exec prisma migrate dev",
     "db:generate": "pnpm --filter @novamail/api exec prisma generate"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "turbo": "^2.5.0"
   }
 }

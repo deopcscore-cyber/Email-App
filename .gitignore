@@ -13,3 +13,9 @@ coverage/
 
 # Redis snapshots (local dev)
 dump.rdb
+
+# Test run artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
