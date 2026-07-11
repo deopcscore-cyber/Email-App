@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Download, FileText, Image as ImageIcon } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  Eye,
+  FileText,
+  Image as ImageIcon,
+} from "lucide-react";
 import type { AttachmentDto, MessageDto } from "@novamail/shared";
 import {
   avatarHue,
@@ -11,32 +17,86 @@ import {
   formatFullTime,
   initials,
 } from "@/lib/format";
+import { attachmentUrl } from "../lib/attachment-url";
 import { transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
+const PREVIEWABLE_TYPES = new Set(["application/pdf"]);
+
 function AttachmentChip({ attachment }: { attachment: AttachmentDto }) {
-  const Icon = attachment.mimeType.startsWith("image/") ? ImageIcon : FileText;
+  const isImage = attachment.mimeType.startsWith("image/");
+  const isPreviewable = isImage || PREVIEWABLE_TYPES.has(attachment.mimeType);
+  const Icon = isImage ? ImageIcon : FileText;
+  const [previewOpen, setPreviewOpen] = useState(false);
+
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-muted px-3 py-2">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft">
-        <Icon className="size-4 text-accent" aria-hidden />
-      </span>
-      <span className="min-w-0">
-        <span className="block max-w-44 truncate text-xs font-medium">
-          {attachment.filename}
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-muted px-3 py-2">
+        <span className="flex size-8 items-center justify-center rounded-lg bg-accent-soft">
+          <Icon className="size-4 text-accent" aria-hidden />
         </span>
-        <span className="block text-[11px] text-muted-foreground">
-          {formatBytes(attachment.sizeBytes)}
+        <span className="min-w-0">
+          <span className="block max-w-44 truncate text-xs font-medium">
+            {attachment.filename}
+          </span>
+          <span className="block text-[11px] text-muted-foreground">
+            {formatBytes(attachment.sizeBytes)}
+          </span>
         </span>
-      </span>
-      <button
-        type="button"
-        aria-label={`Download ${attachment.filename}`}
-        title="Download (arrives in Phase 4)"
-        className="ml-2 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-      >
-        <Download className="size-3.5" aria-hidden />
-      </button>
+        {isPreviewable && (
+          <button
+            type="button"
+            aria-label={
+              previewOpen
+                ? `Hide preview of ${attachment.filename}`
+                : `Preview ${attachment.filename}`
+            }
+            aria-expanded={previewOpen}
+            title="Preview"
+            onClick={() => setPreviewOpen((v) => !v)}
+            className={cn(
+              "ml-2 rounded-md p-1.5 transition-colors hover:bg-surface hover:text-foreground",
+              previewOpen ? "text-accent" : "text-muted-foreground",
+            )}
+          >
+            <Eye className="size-3.5" aria-hidden />
+          </button>
+        )}
+        <a
+          href={attachmentUrl(attachment.id, "attachment")}
+          download={attachment.filename}
+          aria-label={`Download ${attachment.filename}`}
+          title="Download"
+          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+        >
+          <Download className="size-3.5" aria-hidden />
+        </a>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {previewOpen && isImage && (
+          <motion.img
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={transitions.enter}
+            src={attachmentUrl(attachment.id, "inline")}
+            alt={attachment.filename}
+            className="max-h-96 max-w-full rounded-xl border border-border object-contain"
+          />
+        )}
+        {previewOpen && !isImage && isPreviewable && (
+          <motion.iframe
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 480, opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={transitions.enter}
+            src={attachmentUrl(attachment.id, "inline")}
+            title={attachment.filename}
+            className="w-full rounded-xl border border-border"
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

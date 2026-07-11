@@ -22,3 +22,6 @@ playwright/.cache/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Local attachment upload storage (dev/test runtime data)
+apps/api/var/
