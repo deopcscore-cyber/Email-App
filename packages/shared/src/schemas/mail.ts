@@ -76,6 +76,7 @@ export const attachmentDtoSchema = z.object({
   mimeType: z.string(),
   sizeBytes: z.number().int(),
   isInline: z.boolean(),
+  contentId: z.string().nullable(),
 });
 export type AttachmentDto = z.infer<typeof attachmentDtoSchema>;
 

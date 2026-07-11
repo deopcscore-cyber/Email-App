@@ -1,8 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { AttachmentDto } from "@novamail/shared";
+import { attachmentUrl } from "../lib/attachment-url";
 
 let linkHookInstalled = false;
+
+/** Gmail/Graph both leave inline images as `cid:` references pointing at
+ * the message's own attachment parts -- not a resolvable URL in a browser,
+ * so left alone they render as broken images. Swap each for the matching
+ * attachment's inline download URL before sanitizing. */
+function resolveCidReferences(html: string, attachments: AttachmentDto[]): string {
+  const byContentId = new Map(
+    attachments
+      .filter((a): a is AttachmentDto & { contentId: string } => a.contentId !== null)
+      .map((a) => [a.contentId, a.id]),
+  );
+  if (byContentId.size === 0) return html;
+  return html.replace(
+    /\b(src|background)(\s*=\s*)(["'])cid:([^"'>]+)\3/gi,
+    (match: string, attr: string, eq: string, quote: string, cid: string) => {
+      const id = byContentId.get(cid);
+      return id === undefined
+        ? match
+        : `${attr}${eq}${quote}${attachmentUrl(id, "inline")}${quote}`;
+    },
+  );
+}
 
 /**
  * Renders bodyHtml in a sandboxed, sanitized iframe -- the plain-text
@@ -29,9 +53,11 @@ function buildSrcDoc(sanitizedHtml: string): string {
 export function MessageBody({
   bodyHtml,
   bodyText,
+  attachments,
 }: {
   bodyHtml: string | null;
   bodyText: string | null;
+  attachments: AttachmentDto[];
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [srcDoc, setSrcDoc] = useState<string | null>(null);
@@ -57,12 +83,13 @@ export function MessageBody({
         });
         linkHookInstalled = true;
       }
-      setSrcDoc(buildSrcDoc(DOMPurify.sanitize(bodyHtml)));
+      const withImages = resolveCidReferences(bodyHtml, attachments);
+      setSrcDoc(buildSrcDoc(DOMPurify.sanitize(withImages)));
     });
     return () => {
       cancelled = true;
     };
-  }, [bodyHtml]);
+  }, [bodyHtml, attachments]);
 
   const resize = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;

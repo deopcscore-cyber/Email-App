@@ -174,21 +174,32 @@ export function MessageCard({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 pl-16 max-md:pl-4">
-              <MessageBody bodyHtml={message.bodyHtml} bodyText={message.bodyText} />
+              <MessageBody
+                bodyHtml={message.bodyHtml}
+                bodyText={message.bodyText}
+                attachments={message.attachments}
+              />
 
-              {message.attachments.length > 0 && (
-                <div className="mt-4 border-t border-border pt-3">
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">
-                    {message.attachments.length} attachment
-                    {message.attachments.length > 1 ? "s" : ""}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {message.attachments.map((a) => (
-                      <AttachmentChip key={a.id} attachment={a} />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {(() => {
+                // Inline images (signatures, logos) already render inside
+                // the body above -- listing them again as chips is noise.
+                const downloadable = message.attachments.filter((a) => !a.isInline);
+                return (
+                  downloadable.length > 0 && (
+                    <div className="mt-4 border-t border-border pt-3">
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">
+                        {downloadable.length} attachment
+                        {downloadable.length > 1 ? "s" : ""}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {downloadable.map((a) => (
+                          <AttachmentChip key={a.id} attachment={a} />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                );
+              })()}
             </div>
           </motion.div>
         )}

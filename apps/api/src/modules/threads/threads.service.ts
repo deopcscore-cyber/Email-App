@@ -178,6 +178,7 @@ export class ThreadsService {
             mimeType: a.mimeType,
             sizeBytes: a.sizeBytes,
             isInline: a.isInline,
+            contentId: a.contentId,
           })),
         }),
       ),
