@@ -21,7 +21,10 @@ async function bootstrap(): Promise<void> {
   app.enableCors({ origin: env.APP_ORIGIN, credentials: true });
   app.enableShutdownHooks();
 
-  await app.listen(env.API_PORT);
+  // Explicit host: Nest/Node's default (no host arg) can bind IPv6-only
+  // in some container network namespaces, which leaves Railway's IPv4
+  // healthcheck prober unable to connect even though the app is running.
+  await app.listen(env.API_PORT, "0.0.0.0");
   new Logger("Bootstrap").log(
     `NovaMail API listening on :${env.API_PORT}${API_PREFIX}`,
   );
