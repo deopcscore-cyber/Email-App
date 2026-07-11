@@ -30,6 +30,11 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   /** Override for tests/self-hosted gateways; production uses the default. */
   OPENAI_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
+
+  /** Web Push (VAPID) — empty means push notifications are disabled. */
+  VAPID_PUBLIC_KEY: z.string().default(""),
+  VAPID_PRIVATE_KEY: z.string().default(""),
+  VAPID_SUBJECT: z.string().default("mailto:support@novamail.dev"),
 });
 
 export type Env = z.infer<typeof envSchema>;

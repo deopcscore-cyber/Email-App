@@ -1,8 +1,12 @@
-import type { SessionUserDto } from "@novamail/shared";
+import type { SessionUserDto, UpdateSettingsDto, UserSettingsDto } from "@novamail/shared";
 import { api } from "@/lib/api-client";
 
 export function fetchSession(): Promise<SessionUserDto> {
   return api<SessionUserDto>("/auth/session");
+}
+
+export function updateSettings(body: UpdateSettingsDto): Promise<UserSettingsDto> {
+  return api<UserSettingsDto>("/me/settings", { method: "PATCH", body });
 }
 
 export function logout(): Promise<void> {

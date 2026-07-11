@@ -21,5 +21,13 @@ export const mailEventSchema = z.discriminatedUnion("type", [
     threadId: z.string(),
     subject: z.string(),
   }),
+  z.object({
+    // Genuinely new inbound mail (not the user's own triage/send actions,
+    // not backfill) -- the one event sound/push notifications react to.
+    type: z.literal("mail.received"),
+    threadId: z.string(),
+    subject: z.string(),
+    fromName: z.string(),
+  }),
 ]);
 export type MailEvent = z.infer<typeof mailEventSchema>;

@@ -1,9 +1,10 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { API_PREFIX, type MailEvent } from "@novamail/shared";
+import { useSession } from "@/features/auth/use-session";
 import { threadKeys } from "@/features/mail-list/hooks/use-threads";
 
 /**
@@ -13,6 +14,10 @@ import { threadKeys } from "@/features/mail-list/hooks/use-threads";
  */
 export function useMailEvents(): void {
   const queryClient = useQueryClient();
+  const { data: user } = useSession();
+  // Read fresh inside the SSE handler without reconnecting on every toggle.
+  const soundEnabledRef = useRef(true);
+  soundEnabledRef.current = user?.settings.notificationSound ?? true;
 
   useEffect(() => {
     const source = new EventSource(`${API_PREFIX}/events`);
@@ -64,6 +69,20 @@ export function useMailEvents(): void {
 
     source.addEventListener("sync.progress", () => {
       invalidateLists();
+    });
+
+    source.addEventListener("mail.received", (e: MessageEvent<string>) => {
+      const event = JSON.parse(e.data) as Extract<
+        MailEvent,
+        { type: "mail.received" }
+      >;
+      invalidateLists();
+      toast(`${event.fromName}: ${event.subject || "(no subject)"}`);
+      if (soundEnabledRef.current) {
+        const audio = new Audio("/sounds/notification.wav");
+        audio.volume = 0.5;
+        void audio.play().catch(() => undefined);
+      }
     });
 
     return () => source.close();

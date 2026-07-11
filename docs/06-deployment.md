@@ -103,6 +103,15 @@ Environment variables:
 | `MICROSOFT_TENANT` | `common` (or your tenant ID for single-tenant) |
 | `OPENAI_API_KEY` | from OpenAI dashboard |
 | `OPENAI_MODEL` | `gpt-4o-mini` (or your preferred model) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | generate with `npx web-push generate-vapid-keys`, or `node -e "console.log(require('web-push').generateVAPIDKeys())"` |
+| `VAPID_SUBJECT` | `mailto:you@yourdomain.com` |
+
+Leaving the `VAPID_*` variables unset doesn't break anything — `PushService`
+checks for them and silently no-ops (`GET /push/public-key` returns an empty
+string, and the frontend's Notifications settings page hides the "Enable
+push" toggle entirely). Same values go on the **worker** service below,
+since that's the process that actually calls `webpush.sendNotification`
+when new mail arrives.
 
 `${{web.RAILWAY_PUBLIC_DOMAIN}}` is Railway's built-in cross-service
 reference — it resolves once the `web` service has a public domain
@@ -215,7 +224,8 @@ railway variables --service api \
   --set TOKEN_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
   --set GOOGLE_CLIENT_ID=... --set GOOGLE_CLIENT_SECRET=... \
   --set MICROSOFT_CLIENT_ID=... --set MICROSOFT_CLIENT_SECRET=... --set MICROSOFT_TENANT=common \
-  --set OPENAI_API_KEY=... --set OPENAI_MODEL=gpt-4o-mini
+  --set OPENAI_API_KEY=... --set OPENAI_MODEL=gpt-4o-mini \
+  --set VAPID_PUBLIC_KEY=... --set VAPID_PRIVATE_KEY=... --set VAPID_SUBJECT=mailto:you@yourdomain.com
 
 # worker — same variables, no release command
 railway add --service worker --repo <owner>/<repo>
@@ -226,7 +236,8 @@ railway variables --service worker \
   --set TOKEN_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
   --set GOOGLE_CLIENT_ID=... --set GOOGLE_CLIENT_SECRET=... \
   --set MICROSOFT_CLIENT_ID=... --set MICROSOFT_CLIENT_SECRET=... --set MICROSOFT_TENANT=common \
-  --set OPENAI_API_KEY=... --set OPENAI_MODEL=gpt-4o-mini
+  --set OPENAI_API_KEY=... --set OPENAI_MODEL=gpt-4o-mini \
+  --set VAPID_PUBLIC_KEY=... --set VAPID_PRIVATE_KEY=... --set VAPID_SUBJECT=mailto:you@yourdomain.com
 
 # web
 railway add --service web --repo <owner>/<repo>

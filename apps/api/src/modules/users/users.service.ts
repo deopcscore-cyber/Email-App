@@ -23,6 +23,7 @@ export class UsersService {
       aiFollowUps: settings.aiFollowUps,
       briefingHourLocal: settings.briefingHourLocal,
       timezone: settings.timezone,
+      notificationSound: settings.notificationSound,
     };
   }
 }

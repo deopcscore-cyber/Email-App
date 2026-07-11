@@ -152,6 +152,7 @@ export class AuthService {
         aiFollowUps: user.settings.aiFollowUps,
         briefingHourLocal: user.settings.briefingHourLocal,
         timezone: user.settings.timezone,
+        notificationSound: user.settings.notificationSound,
       },
       accounts: user.accounts.map((a) => ({
         id: a.id,

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { EmailAccount, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EventsService } from "../events/events.service";
+import { PushService } from "../push/push.service";
 import { GmailProvider } from "./providers/gmail.provider";
 import { GraphProvider } from "./providers/graph.provider";
 import type {
@@ -22,6 +23,7 @@ export class SyncService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventsService,
+    private readonly push: PushService,
     private readonly broker: TokenBrokerService,
     private readonly gmail: GmailProvider,
     private readonly graph: GraphProvider,
@@ -105,8 +107,28 @@ export class SyncService {
 
     const touchedThreads = new Set<string>();
     for (const msg of result.changed) {
-      const threadId = await this.upsertMessage(account, msg);
+      const { threadId, isNewInboxMessage } = await this.upsertMessage(
+        account,
+        msg,
+      );
       touchedThreads.add(threadId);
+      if (isNewInboxMessage) {
+        const fromName = msg.from.name ?? msg.from.email;
+        await this.events.publish(account.userId, {
+          type: "mail.received",
+          threadId,
+          subject: msg.subject,
+          fromName,
+        });
+        // Push reaches the user even with the tab closed; SSE only reaches
+        // it open. Best-effort -- a dead/expired subscription is pruned
+        // inside PushService, never blocks sync.
+        await this.push.sendToUser(account.userId, {
+          title: fromName,
+          body: msg.subject,
+          url: `/inbox`,
+        });
+      }
     }
     for (const providerMessageId of result.deletedIds) {
       const existing = await this.prisma.message.findUnique({
@@ -180,7 +202,21 @@ export class SyncService {
   private async upsertMessage(
     account: EmailAccount,
     msg: ProviderMessage,
-  ): Promise<string> {
+  ): Promise<{ threadId: string; isNewInboxMessage: boolean }> {
+    const existing = await this.prisma.message.findUnique({
+      where: {
+        accountId_providerMessageId: {
+          accountId: account.id,
+          providerMessageId: msg.providerMessageId,
+        },
+      },
+      select: { id: true },
+    });
+    const isNewInboxMessage =
+      existing === null &&
+      msg.folder === "INBOX" &&
+      msg.from.email !== account.email;
+
     const thread = await this.prisma.thread.upsert({
       where: {
         accountId_providerThreadId: {
@@ -261,7 +297,7 @@ export class SyncService {
     });
 
     await this.recomputeThread(thread.id, msg.folder);
-    return thread.id;
+    return { threadId: thread.id, isNewInboxMessage };
   }
 
   /** Recomputes denormalized thread fields from its messages. */

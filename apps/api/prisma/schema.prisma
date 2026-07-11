@@ -17,13 +17,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  settings        UserSettings?
-  accounts        EmailAccount[]
-  sessions        Session[]
-  labels          Label[]
-  artifacts       AiArtifact[]
-  reminders       FollowUpReminder[]
-  cannedResponses CannedResponse[]
+  settings          UserSettings?
+  accounts          EmailAccount[]
+  sessions          Session[]
+  labels            Label[]
+  artifacts         AiArtifact[]
+  reminders         FollowUpReminder[]
+  cannedResponses   CannedResponse[]
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
 }
@@ -39,10 +40,25 @@ model UserSettings {
   aiFollowUps       Boolean @default(true)
   briefingHourLocal Int     @default(8)
   timezone          String  @default("UTC")
+  notificationSound Boolean @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 enum Theme {

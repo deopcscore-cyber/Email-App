@@ -9,6 +9,7 @@ const TABS = [
   { href: "/settings/accounts", label: "Accounts" },
   { href: "/settings/signatures", label: "Signatures" },
   { href: "/settings/canned-responses", label: "Canned responses" },
+  { href: "/settings/notifications", label: "Notifications" },
 ];
 
 export default function SettingsLayout({

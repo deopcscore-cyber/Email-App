@@ -42,6 +42,7 @@ export const userSettingsSchema = z.object({
   aiFollowUps: z.boolean(),
   briefingHourLocal: z.number().int().min(0).max(23),
   timezone: z.string(),
+  notificationSound: z.boolean(),
 });
 export type UserSettingsDto = z.infer<typeof userSettingsSchema>;
 

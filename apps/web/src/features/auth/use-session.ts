@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { fetchSession, logout } from "./api";
+import type { SessionUserDto, UpdateSettingsDto } from "@novamail/shared";
+import { fetchSession, logout, updateSettings } from "./api";
 
 export const sessionQueryKey = ["auth", "session"] as const;
 
@@ -13,6 +14,18 @@ export function useSession() {
     queryFn: fetchSession,
     staleTime: 5 * 60_000,
     retry: false,
+  });
+}
+
+export function useUpdateSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: UpdateSettingsDto) => updateSettings(patch),
+    onSuccess: (settings) => {
+      queryClient.setQueryData<SessionUserDto>(sessionQueryKey, (prev) =>
+        prev === undefined ? prev : { ...prev, settings },
+      );
+    },
   });
 }
 
