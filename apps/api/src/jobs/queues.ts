@@ -8,8 +8,9 @@ export const QUEUE_NAMES = {
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
 export interface SyncJobData {
-  kind: "backfill" | "delta" | "writeback";
-  accountId: string;
+  kind: "backfill" | "delta" | "writeback" | "poll-all";
+  /** Every kind but poll-all (a fan-out trigger) targets one account. */
+  accountId?: string;
   /** writeback only */
   threadId?: string;
   action?: {

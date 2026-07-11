@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { EmailAccount, Prisma } from "@prisma/client";
 import type { Address } from "@novamail/shared";
+import { QueueService } from "../../jobs/queue.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EventsService } from "../events/events.service";
 import { PushService } from "../push/push.service";
@@ -48,7 +49,35 @@ export class SyncService {
     private readonly broker: TokenBrokerService,
     private readonly gmail: GmailProvider,
     private readonly graph: GraphProvider,
+    private readonly queues: QueueService,
   ) {}
+
+  /**
+   * Fans out a delta sync to every connected mailbox. Gmail/Graph push
+   * notifications need a registered subscription (Pub/Sub topic + domain
+   * verification, or a Graph /subscriptions resource) that this app never
+   * sets up, so without this, new mail would only ever appear on the
+   * one-time backfill from connecting/reconnecting an account. Called on a
+   * fixed interval (see worker.ts) rather than that push infrastructure --
+   * simpler to run reliably, and delta's history-based fetch is cheap
+   * enough that polling every couple of minutes is not a real cost concern.
+   */
+  async pollAll(): Promise<void> {
+    const accounts = await this.prisma.emailAccount.findMany({
+      where: {
+        syncStatus: { in: ["ACTIVE", "ERROR"] },
+        encryptedRefreshToken: { not: { startsWith: "seed-" } },
+      },
+      select: { id: true },
+    });
+    for (const account of accounts) {
+      await this.queues.enqueue(
+        "sync",
+        { kind: "delta", accountId: account.id },
+        { jobId: `delta-${account.id}-${Math.floor(Date.now() / 60_000)}` },
+      );
+    }
+  }
 
   providerFor(account: Pick<EmailAccount, "provider">): MailProvider {
     return account.provider === "GOOGLE" ? this.gmail : this.graph;
