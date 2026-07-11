@@ -22,6 +22,7 @@ import { useCompose } from "@/features/compose/compose-context";
 import { useMailSelection } from "@/features/mail-list/hooks/use-mail-selection";
 import { useThread } from "@/features/thread-view/hooks/use-thread";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { fadeUp, popIn, staggerChildren, transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import {
   dismissReminder,
@@ -158,129 +159,167 @@ function ThreadAssistant({ thread }: { thread: ThreadDetailDto }) {
             aria-label="Ask the AI assistant about this email"
             className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
           />
-          <button
+          <motion.button
             type="submit"
             aria-label="Ask"
-            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent transition-transform active:scale-95"
+            whileTap={{ scale: 0.85 }}
+            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent"
           >
             <ArrowRight className="size-3 text-accent-foreground" aria-hidden />
-          </button>
+          </motion.button>
         </form>
 
         {/* Actions */}
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {actions.map(({ label, icon: Icon, run }) => (
-            <button
+            <motion.button
               key={label}
               type="button"
+              whileTap={{ scale: 0.94 }}
               onClick={run}
               className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] text-foreground/80 transition-colors hover:border-accent/50 hover:text-accent"
             >
               <Icon className="size-3" aria-hidden />
               {label}
-            </button>
+            </motion.button>
           ))}
           <div className="relative">
-            <button
+            <motion.button
               type="button"
+              whileTap={{ scale: 0.94 }}
               onClick={() => setLangOpen((v) => !v)}
               aria-expanded={langOpen}
               className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] text-foreground/80 transition-colors hover:border-accent/50 hover:text-accent"
             >
               <Languages className="size-3" aria-hidden />
               Translate
-            </button>
-            {langOpen && (
-              <div className="absolute right-0 top-full z-10 mt-1 w-32 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-xl">
-                {LANGUAGES.map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => {
-                      setLangOpen(false);
-                      runStream(`Translation (${lang})`, (cb) =>
-                        streamTranslate(thread.id, lang, cb),
-                      );
-                    }}
-                    className="block w-full px-3 py-1.5 text-left text-xs hover:bg-surface-muted"
-                  >
-                    {lang}
-                  </button>
-                ))}
-              </div>
-            )}
+            </motion.button>
+            <AnimatePresence>
+              {langOpen && (
+                <motion.div
+                  variants={popIn}
+                  initial="hidden"
+                  animate="show"
+                  exit="exit"
+                  style={{ transformOrigin: "top right" }}
+                  className="absolute right-0 top-full z-10 mt-1 w-32 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-xl"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => {
+                        setLangOpen(false);
+                        runStream(`Translation (${lang})`, (cb) =>
+                          streamTranslate(thread.id, lang, cb),
+                        );
+                      }}
+                      className="block w-full px-3 py-1.5 text-left text-xs transition-colors hover:bg-surface-muted"
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </Card>
 
       {/* Streaming output */}
-      {streamLabel !== null && (
-        <Card
-          title={streamLabel}
-          action={
-            <button
-              type="button"
-              aria-label="Clear"
-              onClick={() => {
-                stream.reset();
-                setStreamLabel(null);
-              }}
-              className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+      <AnimatePresence>
+        {streamLabel !== null && (
+          <motion.div
+            key="stream"
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            exit={{ opacity: 0, transition: transitions.fast }}
+          >
+            <Card
+              title={streamLabel}
+              action={
+                <button
+                  type="button"
+                  aria-label="Clear"
+                  onClick={() => {
+                    stream.reset();
+                    setStreamLabel(null);
+                  }}
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+                >
+                  <X className="size-3.5" aria-hidden />
+                </button>
+              }
             >
-              <X className="size-3.5" aria-hidden />
-            </button>
-          }
-        >
-          {stream.status === "error" ? (
-            <p className="text-xs text-danger">{stream.error}</p>
-          ) : stream.text === "" ? (
-            <div className="space-y-2" aria-label="Thinking">
-              <div className="h-2.5 w-full animate-pulse rounded bg-surface-muted" />
-              <div className="h-2.5 w-4/5 animate-pulse rounded bg-surface-muted" />
-            </div>
-          ) : (
-            <StreamingText text={stream.text} status={stream.status} />
-          )}
-        </Card>
-      )}
+              {stream.status === "error" ? (
+                <p className="text-xs text-danger">{stream.error}</p>
+              ) : stream.text === "" ? (
+                <div className="space-y-2" aria-label="Thinking">
+                  <div className="skeleton h-2.5 w-full rounded" />
+                  <div className="skeleton h-2.5 w-4/5 rounded" />
+                </div>
+              ) : (
+                <StreamingText text={stream.text} status={stream.status} />
+              )}
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Reply suggestions */}
-      {(suggestions.isPending || suggestions.data !== undefined) && (
-        <Card title="Reply suggestions">
-          {suggestions.isPending ? (
-            <div className="space-y-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-14 animate-pulse rounded-xl bg-surface-muted" />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {suggestions.data?.suggestions.map((s) => (
-                <button
-                  key={s.tone}
-                  type="button"
-                  onClick={() =>
-                    openFromThread(thread, "reply", {
-                      bodyHtml: `<p>${s.body.replace(/\n/g, "<br>")}</p>`,
-                    })
-                  }
-                  className="rounded-xl border border-border bg-surface-muted px-3 py-2 text-left transition-colors hover:border-accent/50"
-                >
-                  <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wider text-accent">
-                    {s.tone}
-                  </span>
-                  <span className="line-clamp-3 text-xs leading-5 text-foreground/85">
-                    {s.body}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
+      <AnimatePresence>
+        {(suggestions.isPending || suggestions.data !== undefined) && (
+          <motion.div
+            key="suggestions"
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            exit={{ opacity: 0, transition: transitions.fast }}
+          >
+            <Card title="Reply suggestions">
+              {suggestions.isPending ? (
+                <div className="space-y-2">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="skeleton h-14 rounded-xl" />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {suggestions.data?.suggestions.map((s) => (
+                    <motion.button
+                      key={s.tone}
+                      type="button"
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() =>
+                        openFromThread(thread, "reply", {
+                          bodyHtml: `<p>${s.body.replace(/\n/g, "<br>")}</p>`,
+                        })
+                      }
+                      className="rounded-xl border border-border bg-surface-muted px-3 py-2 text-left transition-colors hover:border-accent/50"
+                    >
+                      <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wider text-accent">
+                        {s.tone}
+                      </span>
+                      <span className="line-clamp-3 text-xs leading-5 text-foreground/85">
+                        {s.body}
+                      </span>
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Action items */}
       {(actionItems.isPending || actionItems.data !== undefined) && (
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+        >
         <Card title="Action items">
           {actionItems.isPending ? (
             <div className="space-y-2">
@@ -322,6 +361,7 @@ function ThreadAssistant({ thread }: { thread: ThreadDetailDto }) {
             </ul>
           )}
         </Card>
+        </motion.div>
       )}
     </>
   );
@@ -361,18 +401,19 @@ function DailyBriefing() {
         </p>
 
         {!requested ? (
-          <button
+          <motion.button
             type="button"
+            whileTap={{ scale: 0.98 }}
             onClick={() => setRequested(true)}
             className="w-full rounded-xl bg-gradient-to-br from-[#7C5CFC] to-[#5A3FE0] px-4 py-2.5 text-xs font-medium text-white transition-[filter] hover:brightness-110"
           >
             Generate today&apos;s briefing
-          </button>
+          </motion.button>
         ) : briefing.isPending ? (
           <div className="space-y-2" aria-label="Generating briefing">
-            <div className="h-3 w-4/5 animate-pulse rounded bg-surface-muted" />
-            <div className="h-3 w-full animate-pulse rounded bg-surface-muted" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-surface-muted" />
+            <div className="skeleton h-3 w-4/5 rounded" />
+            <div className="skeleton h-3 w-full rounded" />
+            <div className="skeleton h-3 w-2/3 rounded" />
           </div>
         ) : briefing.isError ? (
           <p className="text-xs text-danger">
@@ -381,13 +422,17 @@ function DailyBriefing() {
               : "Briefing failed"}
           </p>
         ) : (
-          <>
-            <p className="mb-3 text-[13px] font-medium leading-5">
+          <motion.div
+            variants={staggerChildren(0.05)}
+            initial="hidden"
+            animate="show"
+          >
+            <motion.p variants={fadeUp} className="mb-3 text-[13px] font-medium leading-5">
               {briefing.data.headline}
-            </p>
+            </motion.p>
             <ul className="space-y-2">
               {briefing.data.important.map((item) => (
-                <li key={item.threadId}>
+                <motion.li key={item.threadId} variants={fadeUp}>
                   <button
                     type="button"
                     onClick={() => select(item.threadId)}
@@ -400,7 +445,7 @@ function DailyBriefing() {
                       {item.reason}
                     </span>
                   </button>
-                </li>
+                </motion.li>
               ))}
             </ul>
             {briefing.data.deadlines.length > 0 && (
@@ -418,46 +463,63 @@ function DailyBriefing() {
                 ))}
               </div>
             )}
-          </>
+          </motion.div>
         )}
       </Card>
 
-      {reminders.data !== undefined && reminders.data.length > 0 && (
-        <Card title="Follow-ups">
-          <ul className="space-y-2">
-            {reminders.data.map((reminder) => (
-              <li key={reminder.id} className="flex items-start gap-2">
-                <button
-                  type="button"
-                  onClick={() => select(reminder.threadId)}
-                  className="min-w-0 flex-1 rounded-lg px-2 py-1 text-left hover:bg-surface-muted"
-                >
-                  <span className="block truncate text-xs font-medium">
-                    {reminder.subject}
-                  </span>
-                  <span className="block text-[11px] text-muted-foreground">
-                    {reminder.reason}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Dismiss reminder for ${reminder.subject}`}
-                  onClick={() => {
-                    void dismissReminder(reminder.id).then(() =>
-                      queryClient.invalidateQueries({
-                        queryKey: ["ai", "reminders"],
-                      }),
-                    );
-                  }}
-                  className="rounded-md p-1 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="size-3" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      <AnimatePresence>
+        {reminders.data !== undefined && reminders.data.length > 0 && (
+          <motion.div
+            key="follow-ups"
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            exit={{ opacity: 0, transition: transitions.fast }}
+          >
+            <Card title="Follow-ups">
+              <ul className="space-y-2">
+                <AnimatePresence>
+                  {reminders.data.map((reminder) => (
+                    <motion.li
+                      key={reminder.id}
+                      layout
+                      exit={{ opacity: 0, x: 12, transition: transitions.fast }}
+                      className="flex items-start gap-2"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => select(reminder.threadId)}
+                        className="min-w-0 flex-1 rounded-lg px-2 py-1 text-left transition-colors hover:bg-surface-muted"
+                      >
+                        <span className="block truncate text-xs font-medium">
+                          {reminder.subject}
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {reminder.reason}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Dismiss reminder for ${reminder.subject}`}
+                        onClick={() => {
+                          void dismissReminder(reminder.id).then(() =>
+                            queryClient.invalidateQueries({
+                              queryKey: ["ai", "reminders"],
+                            }),
+                          );
+                        }}
+                        className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+                      >
+                        <X className="size-3" aria-hidden />
+                      </button>
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </ul>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
@@ -472,10 +534,10 @@ export function AiPanel() {
     <AnimatePresence>
       {aiPanelOpen && (
         <motion.aside
-          initial={{ x: 40, opacity: 0 }}
+          initial={{ x: 32, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: 40, opacity: 0 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
+          exit={{ x: 32, opacity: 0 }}
+          transition={transitions.spring}
           aria-label="AI assistant"
           className={cn(
             "flex h-full w-80 shrink-0 flex-col gap-3 overflow-y-auto p-3 pl-1",
@@ -483,20 +545,41 @@ export function AiPanel() {
           )}
         >
           <div className="flex justify-end">
-            <button
+            <motion.button
               type="button"
+              whileTap={{ scale: 0.85 }}
               onClick={toggleAiPanel}
               aria-label="Close AI panel"
-              className="rounded-md p-1 text-chrome-muted hover:text-chrome-foreground"
+              className="rounded-md p-1 text-chrome-muted transition-colors hover:bg-white/10 hover:text-chrome-foreground"
             >
               <X className="size-3.5" aria-hidden />
-            </button>
+            </motion.button>
           </div>
-          {thread !== undefined && selectedId !== null ? (
-            <ThreadAssistant thread={thread} />
-          ) : (
-            <DailyBriefing />
-          )}
+          <AnimatePresence mode="wait">
+            {thread !== undefined && selectedId !== null ? (
+              <motion.div
+                key={thread.id}
+                variants={fadeUp}
+                initial="hidden"
+                animate="show"
+                exit={{ opacity: 0, transition: transitions.fast }}
+                className="flex flex-col gap-3"
+              >
+                <ThreadAssistant thread={thread} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="briefing"
+                variants={fadeUp}
+                initial="hidden"
+                animate="show"
+                exit={{ opacity: 0, transition: transitions.fast }}
+                className="flex flex-col gap-3"
+              >
+                <DailyBriefing />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.aside>
       )}
     </AnimatePresence>

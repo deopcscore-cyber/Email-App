@@ -1,9 +1,11 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Address, ContactDto } from "@novamail/shared";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { popIn, transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { searchContacts } from "../api/compose.api";
 
@@ -64,24 +66,31 @@ export function RecipientField({
         <span className="w-12 shrink-0 text-[13px] text-muted-foreground">
           {label}
         </span>
-        {value.map((address) => (
-          <span
-            key={address.email}
-            className="flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent"
-          >
-            {address.name ?? address.email}
-            <button
-              type="button"
-              aria-label={`Remove ${address.email}`}
-              onClick={() =>
-                onChange(value.filter((v) => v.email !== address.email))
-              }
-              className="rounded-full p-0.5 hover:bg-accent/20"
+        <AnimatePresence initial={false}>
+          {value.map((address) => (
+            <motion.span
+              key={address.email}
+              layout
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8, transition: transitions.fast }}
+              transition={transitions.spring}
+              className="flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent"
             >
-              <X className="size-3" aria-hidden />
-            </button>
-          </span>
-        ))}
+              {address.name ?? address.email}
+              <button
+                type="button"
+                aria-label={`Remove ${address.email}`}
+                onClick={() =>
+                  onChange(value.filter((v) => v.email !== address.email))
+                }
+                className="rounded-full p-0.5 transition-colors hover:bg-accent/20"
+              >
+                <X className="size-3" aria-hidden />
+              </button>
+            </motion.span>
+          ))}
+        </AnimatePresence>
         <input
           ref={inputRef}
           type="text"
@@ -119,39 +128,46 @@ export function RecipientField({
         {trailing}
       </div>
 
-      {suggestions.length > 0 && (
-        <ul
-          role="listbox"
-          aria-label="Contact suggestions"
-          className="absolute left-14 top-full z-10 mt-1 w-72 overflow-hidden rounded-xl border border-border bg-surface shadow-xl"
-        >
-          {suggestions.map((contact, i) => (
-            <li key={contact.id} role="option" aria-selected={i === highlight}>
-              <button
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  commit({ name: contact.name, email: contact.email });
-                }}
-                onMouseEnter={() => setHighlight(i)}
-                className={cn(
-                  "flex w-full flex-col px-3 py-2 text-left",
-                  i === highlight && "bg-accent-soft",
-                )}
-              >
-                <span className="text-[13px] font-medium">
-                  {contact.name ?? contact.email}
-                </span>
-                {contact.name !== null && (
-                  <span className="text-[11px] text-muted-foreground">
-                    {contact.email}
+      <AnimatePresence>
+        {suggestions.length > 0 && (
+          <motion.ul
+            role="listbox"
+            aria-label="Contact suggestions"
+            variants={popIn}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            style={{ transformOrigin: "top left" }}
+            className="absolute left-14 top-full z-10 mt-1 w-72 overflow-hidden rounded-xl border border-border bg-surface shadow-xl"
+          >
+            {suggestions.map((contact, i) => (
+              <li key={contact.id} role="option" aria-selected={i === highlight}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    commit({ name: contact.name, email: contact.email });
+                  }}
+                  onMouseEnter={() => setHighlight(i)}
+                  className={cn(
+                    "flex w-full flex-col px-3 py-2 text-left transition-colors",
+                    i === highlight && "bg-accent-soft",
+                  )}
+                >
+                  <span className="text-[13px] font-medium">
+                    {contact.name ?? contact.email}
                   </span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+                  {contact.name !== null && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {contact.email}
+                    </span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

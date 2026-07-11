@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { Moon, Sun, SunMoon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -21,14 +22,26 @@ export function ThemeToggle() {
     current === "dark" ? Moon : current === "light" ? Sun : SunMoon;
 
   return (
-    <button
+    <motion.button
       type="button"
+      whileTap={{ scale: 0.85 }}
       onClick={() => setTheme(next)}
       title={`Theme: ${current} — click for ${next}`}
       aria-label={`Switch theme (current: ${current})`}
-      className="flex size-7 shrink-0 items-center justify-center rounded-lg text-chrome-muted transition-colors hover:bg-white/10 hover:text-white"
+      className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-lg text-chrome-muted transition-colors hover:bg-white/10 hover:text-white"
     >
-      <Icon className="size-4" aria-hidden />
-    </button>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={current}
+          initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
+          animate={{ rotate: 0, opacity: 1, scale: 1 }}
+          exit={{ rotate: 90, opacity: 0, scale: 0.6 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+          className="flex"
+        >
+          <Icon className="size-4" aria-hidden />
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
   );
 }

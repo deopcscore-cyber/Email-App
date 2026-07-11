@@ -20,7 +20,9 @@ import { useMailSelection } from "@/features/mail-list/hooks/use-mail-selection"
 import { useTriageThread } from "@/features/mail-list/hooks/use-threads";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
 import { SnoozePopover } from "@/features/snooze/snooze-popover";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { displayName } from "@/lib/format";
+import { fadeUp, staggerChildren, transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { useMarkReadOnOpen, useThread } from "../hooks/use-thread";
 import { MessageCard } from "./message-card";
@@ -35,15 +37,16 @@ function ToolbarButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       aria-label={label}
       title={label}
+      whileTap={{ scale: 0.88 }}
       onClick={onClick}
       className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -54,6 +57,7 @@ export function ThreadView() {
   const { toggleAiPanel } = useUi();
   const { openFromThread } = useCompose();
   const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const isMobile = useMediaQuery("(max-width: 767px)");
   useMarkReadOnOpen(selectedId, thread?.unreadCount);
 
   const hasThread = selectedId !== null && thread !== undefined;
@@ -111,7 +115,10 @@ export function ThreadView() {
 
   if (selectedId === null) {
     return (
-      <section
+      <motion.section
+        variants={fadeUp}
+        initial="hidden"
+        animate="show"
         aria-label="Reading pane"
         className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 text-center max-md:hidden"
       >
@@ -125,12 +132,16 @@ export function ThreadView() {
           navigate, <kbd className="rounded border border-border px-1">Enter</kbd>{" "}
           to open
         </p>
-      </section>
+      </motion.section>
     );
   }
 
   return (
-    <section
+    <motion.section
+      key={isMobile ? selectedId : "thread-pane"}
+      initial={isMobile ? { x: 24, opacity: 0 } : false}
+      animate={{ x: 0, opacity: 1 }}
+      transition={transitions.enter}
       aria-label="Reading pane"
       className="flex min-w-0 flex-1 flex-col max-md:absolute max-md:inset-0 max-md:z-10 max-md:bg-background"
     >
@@ -179,13 +190,21 @@ export function ThreadView() {
             })
           }
         >
-          <Star
-            className={cn(
-              "size-4",
-              thread?.isStarred === true && "fill-amber-400 text-amber-400",
-            )}
-            aria-hidden
-          />
+          <motion.span
+            key={thread?.isStarred ? "starred" : "unstarred"}
+            initial={{ scale: 0.6 }}
+            animate={{ scale: 1 }}
+            transition={transitions.spring}
+            className="block"
+          >
+            <Star
+              className={cn(
+                "size-4",
+                thread?.isStarred === true && "fill-amber-400 text-amber-400",
+              )}
+              aria-hidden
+            />
+          </motion.span>
         </ToolbarButton>
         <div className="mx-1 h-4 w-px bg-border" aria-hidden />
         <ToolbarButton
@@ -206,32 +225,33 @@ export function ThreadView() {
         >
           <Forward className="size-4" aria-hidden />
         </ToolbarButton>
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.96 }}
           onClick={toggleAiPanel}
           className="ml-auto flex items-center gap-1.5 rounded-lg bg-accent-soft px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent-soft/70"
         >
           <Sparkles className="size-3.5" aria-hidden />
           AI Assistant
           <kbd className="rounded border border-accent/20 px-1 text-[10px]">⌘J</kbd>
-        </button>
+        </motion.button>
       </header>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-5 max-md:px-3">
         {isPending || thread === undefined ? (
           <div className="space-y-3">
-            <div className="h-7 w-2/3 animate-pulse rounded-lg bg-surface-muted" />
-            <div className="h-40 animate-pulse rounded-2xl bg-surface-muted" />
+            <div className="skeleton h-7 w-2/3 rounded-lg" />
+            <div className="skeleton h-40 rounded-2xl" />
           </div>
         ) : (
           <motion.div
             key={thread.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            variants={staggerChildren(0.06)}
+            initial="hidden"
+            animate="show"
           >
-            <div className="mb-4 flex items-center gap-2.5">
+            <motion.div variants={fadeUp} className="mb-4 flex items-center gap-2.5">
               <h1 className="text-xl font-semibold tracking-tight">
                 {thread.subject}
               </h1>
@@ -247,25 +267,29 @@ export function ThreadView() {
                   {label.name}
                 </span>
               ))}
-            </div>
+            </motion.div>
 
             <div className="flex flex-col gap-3">
               {thread.messages
                 .filter((m) => m.bodyHtml !== null || m.bodyText !== null)
                 .map((message, i, visible) => (
-                  <MessageCard
-                    key={message.id}
-                    message={message}
-                    defaultExpanded={i === visible.length - 1 || !message.isRead}
-                  />
+                  <motion.div key={message.id} variants={fadeUp}>
+                    <MessageCard
+                      message={message}
+                      defaultExpanded={i === visible.length - 1 || !message.isRead}
+                    />
+                  </motion.div>
                 ))}
             </div>
 
             {/* Quick reply */}
-            <button
+            <motion.button
               type="button"
+              variants={fadeUp}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.99 }}
               onClick={() => openFromThread(thread, "reply")}
-              className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-left transition-colors hover:border-accent/40"
+              className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-left shadow-sm transition-colors hover:border-accent/40"
             >
               <Reply className="size-4 text-muted-foreground" aria-hidden />
               <span className="flex-1 text-[13px] text-muted-foreground">
@@ -278,10 +302,10 @@ export function ThreadView() {
               <kbd className="rounded border border-border px-1.5 text-[10px] text-muted-foreground">
                 r
               </kbd>
-            </button>
+            </motion.button>
           </motion.div>
         )}
       </div>
-    </section>
+    </motion.section>
   );
 }

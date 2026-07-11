@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useTriageThread } from "@/features/mail-list/hooks/use-threads";
+import { useOverlayScope, useShortcut } from "@/features/shortcuts/use-shortcut";
+import { popIn } from "@/lib/motion";
 
 export function snoozePresets(): { label: string; hint: string; at: Date }[] {
   const now = new Date();
@@ -46,6 +48,8 @@ export function SnoozePopover({
   onSnoozed,
 }: SnoozePopoverProps) {
   const triage = useTriageThread();
+  useOverlayScope(open);
+  useShortcut("escape", onClose, { scope: "overlay", enabled: open });
 
   return (
     <AnimatePresence>
@@ -56,10 +60,11 @@ export function SnoozePopover({
           <motion.div
             role="menu"
             aria-label="Snooze until"
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.14, ease: "easeOut" }}
+            variants={popIn}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            style={{ transformOrigin: "top left" }}
             className="absolute left-0 top-full z-30 mt-1 w-60 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-2xl"
           >
             <p className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -81,7 +86,7 @@ export function SnoozePopover({
                   onClose();
                   onSnoozed?.();
                 }}
-                className="flex w-full items-center justify-between px-3 py-2 text-[13px] hover:bg-surface-muted"
+                className="flex w-full items-center justify-between px-3 py-2 text-[13px] transition-colors hover:bg-surface-muted"
               >
                 {label}
                 <span className="text-[11px] text-muted-foreground">{hint}</span>

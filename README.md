@@ -62,6 +62,6 @@ and OAuth callbacks share the web origin.
 | 3 | Dashboard UI — shell, list, reading pane, AI panel, keyboard system | ✅ |
 | 4 | Email features — sync engine, compose, undo/schedule send, snooze, search, SSE | ✅ |
 | 5 | AI integration — streaming assistant, NL search, briefing, smart labels | ✅ |
-| 6 | Animations & micro-interactions | ⏳ |
+| 6 | Animations & micro-interactions — motion system, reduced-motion support | ✅ |
 | 7 | Testing | ⏳ |
 | 8 | Deployment | ⏳ |

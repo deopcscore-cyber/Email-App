@@ -25,9 +25,11 @@ export function LoginScreen({ errorMessage }: { errorMessage: string | null }) {
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[oklch(0.13_0.032_278)] px-6">
       {/* Ambient violet glow, matching the reference design's atmosphere */}
-      <div
+      <motion.div
         aria-hidden
-        className="pointer-events-none absolute -top-64 left-1/2 size-[42rem] -translate-x-1/2 rounded-full bg-[oklch(0.45_0.18_285)] opacity-25 blur-[140px]"
+        animate={{ opacity: [0.2, 0.28, 0.2], scale: [1, 1.04, 1] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        className="pointer-events-none absolute -top-64 left-1/2 size-[42rem] -translate-x-1/2 rounded-full bg-[oklch(0.45_0.18_285)] blur-[140px]"
       />
 
       <motion.div
@@ -72,13 +74,15 @@ export function LoginScreen({ errorMessage }: { errorMessage: string | null }) {
           className="mt-10 flex flex-wrap items-center justify-center gap-2"
         >
           {FEATURES.map(({ icon: Icon, label }) => (
-            <li
+            <motion.li
               key={label}
+              whileHover={{ y: -2, backgroundColor: "rgba(255,255,255,0.08)" }}
+              transition={{ duration: 0.15 }}
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-white/60"
             >
               <Icon className="size-3.5 text-[#9B85FF]" aria-hidden />
               {label}
-            </li>
+            </motion.li>
           ))}
         </motion.ul>
 

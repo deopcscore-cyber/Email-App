@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useUi } from "@/contexts/ui-context";
+import { fadeUp, popIn, staggerChildren } from "@/lib/motion";
 import { useOverlayScope, useShortcut } from "./use-shortcut";
 
 const SECTIONS: { title: string; shortcuts: [string, string][] }[] = [
@@ -56,10 +57,10 @@ export function ShortcutsHelpModal() {
           <motion.div
             role="dialog"
             aria-label="Keyboard shortcuts"
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.97 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            variants={popIn}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             onClick={(e) => e.stopPropagation()}
             className="w-[480px] max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-surface p-6 shadow-2xl"
           >
@@ -69,20 +70,28 @@ export function ShortcutsHelpModal() {
                 type="button"
                 aria-label="Close"
                 onClick={() => setHelpOpen(false)}
-                className="ml-auto rounded-md p-1 text-muted-foreground hover:text-foreground"
+                className="ml-auto rounded-md p-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
               >
                 <X className="size-4" aria-hidden />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-6 max-md:grid-cols-1">
+            <motion.div
+              variants={staggerChildren(0.05)}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-2 gap-6 max-md:grid-cols-1"
+            >
               {SECTIONS.map((section) => (
-                <div key={section.title}>
+                <motion.div key={section.title} variants={fadeUp}>
                   <h3 className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                     {section.title}
                   </h3>
                   <dl className="space-y-1.5">
                     {section.shortcuts.map(([keys, description]) => (
-                      <div key={keys} className="flex items-center gap-3">
+                      <div
+                        key={keys}
+                        className="flex items-center gap-3 rounded-lg px-1 py-0.5 transition-colors hover:bg-surface-muted"
+                      >
                         <dt>
                           <kbd className="rounded-md border border-border bg-surface-muted px-1.5 py-0.5 font-sans text-[11px]">
                             {keys}
@@ -94,9 +103,9 @@ export function ShortcutsHelpModal() {
                       </div>
                     ))}
                   </dl>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </motion.div>
         </motion.div>
       )}

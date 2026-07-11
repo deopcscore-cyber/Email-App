@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Download, FileText, Image as ImageIcon } from "lucide-react";
 import type { AttachmentDto, MessageDto } from "@novamail/shared";
 import {
@@ -10,6 +11,7 @@ import {
   formatFullTime,
   initials,
 } from "@/lib/format";
+import { transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 function AttachmentChip({ attachment }: { attachment: AttachmentDto }) {
@@ -101,29 +103,39 @@ export function MessageCard({
         />
       </button>
 
-      {expanded && (
-        <div className="px-4 pb-4 pl-16 max-md:pl-4">
-          {/* Phase 4 renders sanitized bodyHtml in a sandboxed iframe;
-              seeded messages are plain text. */}
-          <div className="whitespace-pre-wrap text-[13.5px] leading-6 text-foreground/90">
-            {message.bodyText ?? ""}
-          </div>
-
-          {message.attachments.length > 0 && (
-            <div className="mt-4 border-t border-border pt-3">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">
-                {message.attachments.length} attachment
-                {message.attachments.length > 1 ? "s" : ""}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {message.attachments.map((a) => (
-                  <AttachmentChip key={a.id} attachment={a} />
-                ))}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={transitions.enter}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pl-16 max-md:pl-4">
+              {/* Phase 4 renders sanitized bodyHtml in a sandboxed iframe;
+                  seeded messages are plain text. */}
+              <div className="whitespace-pre-wrap text-[13.5px] leading-6 text-foreground/90">
+                {message.bodyText ?? ""}
               </div>
+
+              {message.attachments.length > 0 && (
+                <div className="mt-4 border-t border-border pt-3">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    {message.attachments.length} attachment
+                    {message.attachments.length > 1 ? "s" : ""}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {message.attachments.map((a) => (
+                      <AttachmentChip key={a.id} attachment={a} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </article>
   );
 }

@@ -1,10 +1,12 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { RewriteTone } from "@novamail/shared";
 import { streamRewrite } from "@/features/ai/api/ai.api";
+import { popIn } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const TONES: { tone: RewriteTone; label: string }[] = [
@@ -60,8 +62,9 @@ export function RewriteMenu({
 
   return (
     <div className="relative">
-      <button
+      <motion.button
         type="button"
+        whileTap={{ scale: 0.92 }}
         onClick={() => setOpen((v) => !v)}
         disabled={busy}
         aria-expanded={open}
@@ -78,45 +81,54 @@ export function RewriteMenu({
           <Sparkles className="size-4" aria-hidden />
         )}
         AI
-      </button>
+      </motion.button>
 
-      {open && (
-        <div className="absolute bottom-11 left-0 z-20 w-64 rounded-xl border border-border bg-surface p-2 shadow-2xl">
-          <p className="px-1 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Rewrite draft
-          </p>
-          <div className="flex flex-wrap gap-1.5 px-1 pb-2">
-            {TONES.map(({ tone, label }) => (
-              <button
-                key={tone}
-                type="button"
-                onClick={() => run({ tone })}
-                className="rounded-full border border-border px-2.5 py-1 text-[11px] transition-colors hover:border-accent/50 hover:text-accent"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (instruction.trim() !== "") {
-                run({ instruction: instruction.trim() });
-                setInstruction("");
-              }
-            }}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            variants={popIn}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            style={{ transformOrigin: "bottom left" }}
+            className="absolute bottom-11 left-0 z-20 w-64 rounded-xl border border-border bg-surface p-2 shadow-2xl"
           >
-            <input
-              type="text"
-              value={instruction}
-              onChange={(e) => setInstruction(e.target.value)}
-              placeholder="Or describe the change…"
-              aria-label="Custom rewrite instruction"
-              className="w-full rounded-lg border border-border bg-surface-muted px-2.5 py-1.5 text-xs outline-none placeholder:text-muted-foreground focus:border-accent/50"
-            />
-          </form>
-        </div>
-      )}
+            <p className="px-1 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Rewrite draft
+            </p>
+            <div className="flex flex-wrap gap-1.5 px-1 pb-2">
+              {TONES.map(({ tone, label }) => (
+                <button
+                  key={tone}
+                  type="button"
+                  onClick={() => run({ tone })}
+                  className="rounded-full border border-border px-2.5 py-1 text-[11px] transition-colors hover:border-accent/50 hover:text-accent"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (instruction.trim() !== "") {
+                  run({ instruction: instruction.trim() });
+                  setInstruction("");
+                }
+              }}
+            >
+              <input
+                type="text"
+                value={instruction}
+                onChange={(e) => setInstruction(e.target.value)}
+                placeholder="Or describe the change…"
+                aria-label="Custom rewrite instruction"
+                className="w-full rounded-lg border border-border bg-surface-muted px-2.5 py-1.5 text-xs outline-none placeholder:text-muted-foreground focus:border-accent/50"
+              />
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

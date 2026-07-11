@@ -21,6 +21,7 @@ import {
   useShortcut,
 } from "@/features/shortcuts/use-shortcut";
 import { formatBytes } from "@/lib/format";
+import { dockIn, popIn, transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import {
   deleteDraft,
@@ -201,10 +202,10 @@ export function ComposeModal() {
         <motion.div
           role="dialog"
           aria-label={draft.mode === "new" ? "New message" : "Reply"}
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, scale: 0.98 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          variants={dockIn}
+          initial="hidden"
+          animate="show"
+          exit="exit"
           onDragOver={(e) => {
             e.preventDefault();
             setDragOver(true);
@@ -337,27 +338,43 @@ export function ComposeModal() {
 
           <footer className="relative flex items-center gap-1 border-t border-border px-3 py-2.5">
             <div className="flex overflow-hidden rounded-xl shadow-[0_4px_16px_-6px_rgba(124,92,252,0.5)]">
-              <button
+              <motion.button
                 type="button"
+                whileTap={{ scale: 0.97 }}
                 onClick={() => void doSend()}
                 className="flex items-center gap-2 bg-gradient-to-br from-[#7C5CFC] to-[#5A3FE0] px-4 py-2 text-[13px] font-medium text-white transition-[filter] hover:brightness-110"
               >
                 <Send className="size-3.5" aria-hidden />
                 Send
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
                 aria-label="Schedule send"
                 aria-expanded={scheduleOpen}
+                whileTap={{ scale: 0.92 }}
                 onClick={() => setScheduleOpen((v) => !v)}
                 className="border-l border-white/20 bg-gradient-to-br from-[#7C5CFC] to-[#5A3FE0] px-2 text-white transition-[filter] hover:brightness-110"
               >
-                <ChevronDown className="size-3.5" aria-hidden />
-              </button>
+                <motion.span
+                  animate={{ rotate: scheduleOpen ? 180 : 0 }}
+                  transition={transitions.fast}
+                  className="block"
+                >
+                  <ChevronDown className="size-3.5" aria-hidden />
+                </motion.span>
+              </motion.button>
             </div>
 
-            {scheduleOpen && (
-              <div className="absolute bottom-14 left-3 z-20 w-56 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-2xl">
+            <AnimatePresence>
+              {scheduleOpen && (
+                <motion.div
+                  variants={popIn}
+                  initial="hidden"
+                  animate="show"
+                  exit="exit"
+                  style={{ transformOrigin: "bottom left" }}
+                  className="absolute bottom-14 left-3 z-20 w-56 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-2xl"
+                >
                 <p className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                   <CalendarClock className="size-3.5" aria-hidden />
                   Schedule send
@@ -380,8 +397,9 @@ export function ComposeModal() {
                     </span>
                   </button>
                 ))}
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <RewriteMenu
               draftId={draft.id}

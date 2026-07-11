@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import { motion } from "framer-motion";
 import { Paperclip, Pin, Star } from "lucide-react";
 import type { ThreadListItemDto } from "@novamail/shared";
 import {
@@ -132,9 +133,10 @@ export const EmailRow = memo(function EmailRow({
       </div>
 
       {/* Hover star */}
-      <button
+      <motion.button
         type="button"
         aria-label={thread.isStarred ? "Unstar" : "Star"}
+        whileTap={{ scale: 0.75 }}
         onClick={(e) => {
           e.stopPropagation();
           onToggleStar(thread.id, !thread.isStarred);
@@ -150,7 +152,7 @@ export const EmailRow = memo(function EmailRow({
           )}
           aria-hidden
         />
-      </button>
+      </motion.button>
     </div>
   );
 });

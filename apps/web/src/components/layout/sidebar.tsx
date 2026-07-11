@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   AlertOctagon,
   Clock,
@@ -23,6 +24,7 @@ import { useLabels } from "@/features/labels/use-labels";
 import {
   useThreadCounts,
 } from "@/features/mail-list/hooks/use-threads";
+import { transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -76,18 +78,19 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       </Link>
 
       {/* Compose */}
-      <button
+      <motion.button
         type="button"
+        whileTap={{ scale: 0.97 }}
         onClick={() => openNew()}
         className={cn(
           "mb-4 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-[#7C5CFC] to-[#5A3FE0] text-sm font-medium text-white",
-          "shadow-[0_4px_16px_-4px_rgba(124,92,252,0.5)] transition-all duration-200 hover:brightness-110 active:scale-[0.98]",
+          "shadow-[0_4px_16px_-4px_rgba(124,92,252,0.5)] transition-[filter] duration-200 hover:brightness-110",
           collapsed ? "size-10" : "h-10 w-full",
         )}
       >
         <PenLine className="size-4" aria-hidden />
         {!collapsed && "Compose"}
-      </button>
+      </motion.button>
 
       {/* Folders */}
       <ul className="flex flex-col gap-0.5">
@@ -102,21 +105,29 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
                 aria-current={active ? "page" : undefined}
                 title={collapsed ? label : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors duration-150",
+                  "relative flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors duration-150",
                   active
-                    ? "bg-white/10 font-medium text-white"
+                    ? "font-medium text-white"
                     : "text-chrome-muted hover:bg-white/5 hover:text-white",
                   collapsed && "justify-center px-0 py-2",
                 )}
               >
-                <Icon className="size-4 shrink-0" aria-hidden />
+                {active && (
+                  <motion.span
+                    layoutId="sidebar-active"
+                    transition={transitions.spring}
+                    className="absolute inset-0 rounded-lg bg-white/10"
+                    aria-hidden
+                  />
+                )}
+                <Icon className="relative z-10 size-4 shrink-0" aria-hidden />
                 {!collapsed && (
                   <>
-                    <span className="flex-1">{label}</span>
+                    <span className="relative z-10 flex-1">{label}</span>
                     {count > 0 && (
                       <span
                         className={cn(
-                          "rounded-md px-1.5 py-px text-[11px] tabular-nums",
+                          "relative z-10 rounded-md px-1.5 py-px text-[11px] tabular-nums",
                           view === "inbox"
                             ? "bg-[#7C5CFC] text-white"
                             : "text-chrome-muted",

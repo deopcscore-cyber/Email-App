@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search } from "lucide-react";
+import { fadeUp, rowExit, staggerChildren } from "@/lib/motion";
 import type { ListTab, MailView } from "@novamail/shared";
 import { useUi } from "@/contexts/ui-context";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
@@ -174,26 +175,34 @@ export function EmailList({
             </p>
           </div>
         ) : (
-          <AnimatePresence initial={false}>
-            {threads.map((thread, i) => (
-              <motion.div
-                key={thread.id}
-                layout="position"
-                exit={{ opacity: 0, x: -24, transition: { duration: 0.15 } }}
-              >
-                <EmailRow
-                  thread={thread}
-                  selected={thread.id === selectedId}
-                  focused={i === focusIndex}
-                  onSelect={(id) => {
-                    setFocusIndex(i);
-                    select(id);
-                  }}
-                  onToggleStar={onToggleStar}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          <motion.div
+            key={`${view}:${effectiveTab ?? "all"}:${labelId ?? ""}`}
+            variants={staggerChildren(0.03)}
+            initial="hidden"
+            animate="show"
+          >
+            <AnimatePresence initial={false}>
+              {threads.map((thread, i) => (
+                <motion.div
+                  key={thread.id}
+                  variants={fadeUp}
+                  layout="position"
+                  exit={rowExit}
+                >
+                  <EmailRow
+                    thread={thread}
+                    selected={thread.id === selectedId}
+                    focused={i === focusIndex}
+                    onSelect={(id) => {
+                      setFocusIndex(i);
+                      select(id);
+                    }}
+                    onToggleStar={onToggleStar}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
 
         {hasNextPage === true && (

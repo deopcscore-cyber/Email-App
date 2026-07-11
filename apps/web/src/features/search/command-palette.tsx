@@ -35,6 +35,7 @@ import {
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { api } from "@/lib/api-client";
 import { displayName, formatListTime } from "@/lib/format";
+import { popIn } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 interface Command {
@@ -178,10 +179,10 @@ export function CommandPalette() {
           <motion.div
             role="dialog"
             aria-label="Search and commands"
-            initial={{ opacity: 0, scale: 0.97, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: -8 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            variants={popIn}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             onClick={(e) => e.stopPropagation()}
             className="w-[620px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
           >
