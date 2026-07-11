@@ -37,6 +37,17 @@ RUN cp -r apps/api/dist /prod/api/dist
 RUN mkdir -p /prod/api/node_modules/@novamail/shared \
   && cp -r packages/shared/dist /prod/api/node_modules/@novamail/shared/dist
 
+# `prisma generate` (above) writes the generated client into whichever
+# node_modules pnpm resolved @prisma/client into for THIS install (its own
+# isolated store folder) — `pnpm deploy` recreates node_modules from the
+# lockfile without knowing to regenerate it, so @prisma/client's require of
+# '.prisma/client/default' fails at runtime unless we mirror it across.
+RUN set -eu; \
+  SRC="$(find node_modules -type d -path '*/.prisma/client')"; \
+  DEST="/prod/api/${SRC%/client}"; \
+  mkdir -p "$DEST"; \
+  cp -r "$SRC" "$DEST/"
+
 # ---- runtime: minimal image, no build tooling ---------------------------
 FROM node:22-alpine AS runtime
 RUN addgroup -S app && adduser -S app -G app
