@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { Address } from "@novamail/shared";
+import { mapWithConcurrency } from "./concurrency";
 import { buildMime } from "./mime";
 import type {
   DeltaResult,
@@ -12,6 +13,9 @@ import type {
 
 const BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 const PAGE_SIZE = 100;
+// Gmail 429s with "Too many concurrent requests for user" well below a full
+// page of in-flight requests; keep per-user concurrency conservative.
+const FETCH_CONCURRENCY = 8;
 
 interface GmailHeader {
   name: string;
@@ -104,6 +108,7 @@ export class GmailProvider implements MailProvider {
     accessToken: string,
     path: string,
     init: RequestInit = {},
+    attempt = 0,
   ): Promise<T> {
     const res = await fetch(`${BASE}${path}`, {
       ...init,
@@ -114,6 +119,12 @@ export class GmailProvider implements MailProvider {
       },
     });
     if (!res.ok) {
+      // 429s (rate limit / too many concurrent requests) are worth a couple
+      // of quick in-process retries rather than failing the whole sync job.
+      if (res.status === 429 && attempt < 3) {
+        await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+        return this.call<T>(accessToken, path, init, attempt + 1);
+      }
       throw new GmailApiError(res.status, await res.text());
     }
     return (await res.json()) as T;
@@ -134,8 +145,10 @@ export class GmailProvider implements MailProvider {
       nextPageToken?: string;
     }>(accessToken, `/messages?${qs.toString()}`);
 
-    const messages = await Promise.all(
-      (list.messages ?? []).map((m) => this.getMessage(accessToken, m.id)),
+    const messages = await mapWithConcurrency(
+      list.messages ?? [],
+      FETCH_CONCURRENCY,
+      (m) => this.getMessage(accessToken, m.id),
     );
     return {
       messages: messages.filter((m): m is ProviderMessage => m !== null),
@@ -256,8 +269,10 @@ export class GmailProvider implements MailProvider {
       throw err;
     }
 
-    const changed = await Promise.all(
-      [...changedIds].map((id) => this.getMessage(accessToken, id)),
+    const changed = await mapWithConcurrency(
+      [...changedIds],
+      FETCH_CONCURRENCY,
+      (id) => this.getMessage(accessToken, id),
     );
     return {
       changed: changed.filter((m): m is ProviderMessage => m !== null),

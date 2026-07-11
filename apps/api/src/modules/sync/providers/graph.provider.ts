@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { Address } from "@novamail/shared";
+import { mapWithConcurrency } from "./concurrency";
 import type {
   DeltaResult,
   MailProvider,
@@ -11,6 +12,9 @@ import type {
 
 const BASE = "https://graph.microsoft.com/v1.0/me";
 const PAGE_SIZE = 100;
+// Mirrors the Gmail provider's cap -- Graph throttles per-user concurrent
+// requests too, and a full page firing at once risks the same 429s.
+const FETCH_CONCURRENCY = 8;
 
 interface GraphRecipient {
   emailAddress: { name?: string; address: string };
@@ -76,6 +80,7 @@ export class GraphProvider implements MailProvider {
     accessToken: string,
     url: string,
     init: RequestInit = {},
+    attempt = 0,
   ): Promise<T> {
     const res = await fetch(url.startsWith("http") ? url : `${BASE}${url}`, {
       ...init,
@@ -86,6 +91,12 @@ export class GraphProvider implements MailProvider {
       },
     });
     if (!res.ok) {
+      // 429s (throttling) are worth a couple of quick in-process retries
+      // rather than failing the whole sync job.
+      if (res.status === 429 && attempt < 3) {
+        await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+        return this.call<T>(accessToken, url, init, attempt + 1);
+      }
       throw new GraphApiError(res.status, await res.text());
     }
     if (res.status === 202 || res.status === 204) return undefined as T;
@@ -183,13 +194,11 @@ export class GraphProvider implements MailProvider {
       "@odata.nextLink"?: string;
     }>(accessToken, url);
 
-    const messages = await Promise.all(
-      res.value.map(async (m) => {
-        const normalized = this.toProviderMessage(m, folders);
-        await this.attachAttachments(accessToken, m, normalized);
-        return normalized;
-      }),
-    );
+    const messages = await mapWithConcurrency(res.value, FETCH_CONCURRENCY, async (m) => {
+      const normalized = this.toProviderMessage(m, folders);
+      await this.attachAttachments(accessToken, m, normalized);
+      return normalized;
+    });
     return { messages, nextPageToken: res["@odata.nextLink"] ?? null };
   }
 
