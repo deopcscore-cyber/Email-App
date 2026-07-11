@@ -32,6 +32,7 @@ import {
   uploadAttachment,
 } from "../api/compose.api";
 import { useCompose } from "../compose-context";
+import { CannedResponseMenu } from "./canned-response-menu";
 import { Editor } from "./editor";
 import { RecipientField } from "./recipient-field";
 import { RewriteMenu } from "./rewrite-menu";
@@ -441,6 +442,13 @@ export function ComposeModal() {
               currentBody={bodyHtml}
               onRewritten={(html) => {
                 setBodyHtml(html);
+                setEditorVersion((v) => v + 1);
+              }}
+            />
+
+            <CannedResponseMenu
+              onInsert={(snippet) => {
+                setBodyHtml((prev) => `${prev}${snippet}`);
                 setEditorVersion((v) => v + 1);
               }}
             />

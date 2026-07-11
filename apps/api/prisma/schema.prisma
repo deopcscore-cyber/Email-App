@@ -17,12 +17,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  settings  UserSettings?
-  accounts  EmailAccount[]
-  sessions  Session[]
-  labels    Label[]
-  artifacts AiArtifact[]
-  reminders FollowUpReminder[]
+  settings        UserSettings?
+  accounts        EmailAccount[]
+  sessions        Session[]
+  labels          Label[]
+  artifacts       AiArtifact[]
+  reminders       FollowUpReminder[]
+  cannedResponses CannedResponse[]
 
   @@map("users")
 }
@@ -118,6 +119,20 @@ model Signature {
   account EmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@map("signatures")
+}
+
+model CannedResponse {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  bodyHtml  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("canned_responses")
 }
 
 // ───────────────────────── Mail ─────────────────────────

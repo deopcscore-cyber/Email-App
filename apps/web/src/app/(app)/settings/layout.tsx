@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "/settings/accounts", label: "Accounts" },
   { href: "/settings/signatures", label: "Signatures" },
+  { href: "/settings/canned-responses", label: "Canned responses" },
 ];
 
 export default function SettingsLayout({

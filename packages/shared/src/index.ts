@@ -5,4 +5,5 @@ export * from "./schemas/events";
 export * from "./schemas/search";
 export * from "./schemas/ai";
 export * from "./schemas/signatures";
+export * from "./schemas/canned-responses";
 export * from "./constants";

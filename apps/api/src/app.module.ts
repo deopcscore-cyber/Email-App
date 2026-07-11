@@ -6,6 +6,7 @@ import { RedisModule } from "./redis/redis.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CsrfGuard } from "./modules/auth/guards/csrf.guard";
+import { CannedResponsesModule } from "./modules/canned-responses/canned-responses.module";
 import { ContactsModule } from "./modules/contacts/contacts.module";
 import { EventsModule } from "./modules/events/events.module";
 import { HealthModule } from "./modules/health/health.module";
@@ -34,6 +35,7 @@ import { UsersModule } from "./modules/users/users.module";
     ContactsModule,
     AiModule,
     SignaturesModule,
+    CannedResponsesModule,
   ],
   providers: [
     // CSRF applies globally to every mutating route; safe methods pass.
