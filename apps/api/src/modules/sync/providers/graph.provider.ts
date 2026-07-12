@@ -23,6 +23,7 @@ interface GraphRecipient {
 interface GraphMessage {
   id: string;
   conversationId: string;
+  internetMessageId?: string;
   subject?: string;
   bodyPreview?: string;
   body?: { contentType: "html" | "text"; content: string };
@@ -146,6 +147,7 @@ export class GraphProvider implements MailProvider {
     return {
       providerMessageId: msg.id,
       providerThreadId: msg.conversationId,
+      internetMessageId: msg.internetMessageId ?? null,
       from: toAddress(msg.from),
       to: (msg.toRecipients ?? []).map(toAddress),
       cc: (msg.ccRecipients ?? []).map(toAddress),
@@ -188,7 +190,7 @@ export class GraphProvider implements MailProvider {
     const folders = await this.folderMap(accessToken);
     const url =
       pageToken ??
-      `/messages?$top=${PAGE_SIZE}&$orderby=receivedDateTime desc&$select=id,conversationId,subject,bodyPreview,body,from,toRecipients,ccRecipients,isRead,isDraft,flag,receivedDateTime,parentFolderId,hasAttachments`;
+      `/messages?$top=${PAGE_SIZE}&$orderby=receivedDateTime desc&$select=id,conversationId,internetMessageId,subject,bodyPreview,body,from,toRecipients,ccRecipients,isRead,isDraft,flag,receivedDateTime,parentFolderId,hasAttachments`;
     const res = await this.call<{
       value: GraphMessage[];
       "@odata.nextLink"?: string;
@@ -239,7 +241,7 @@ export class GraphProvider implements MailProvider {
             // Delta payloads are sparse; fetch the full message.
             const full = await this.call<GraphMessage>(
               accessToken,
-              `/messages/${m.id}?$select=id,conversationId,subject,bodyPreview,body,from,toRecipients,ccRecipients,isRead,isDraft,flag,receivedDateTime,parentFolderId,hasAttachments`,
+              `/messages/${m.id}?$select=id,conversationId,internetMessageId,subject,bodyPreview,body,from,toRecipients,ccRecipients,isRead,isDraft,flag,receivedDateTime,parentFolderId,hasAttachments`,
             );
             const normalized = this.toProviderMessage(full, folders);
             await this.attachAttachments(accessToken, full, normalized);
@@ -278,6 +280,14 @@ export class GraphProvider implements MailProvider {
         toRecipients: toRecipients(message.to),
         ccRecipients: toRecipients(message.cc),
         bccRecipients: toRecipients(message.bcc),
+        // Without these, the recipient's client has nothing to match
+        // against the original and threads this as a brand-new email.
+        ...(message.inReplyTo !== undefined && {
+          internetMessageHeaders: [
+            { name: "In-Reply-To", value: message.inReplyTo },
+            { name: "References", value: message.inReplyTo },
+          ],
+        }),
       }),
     });
     for (const att of message.attachments) {

@@ -4,6 +4,8 @@ import type { Address } from "@novamail/shared";
 export interface ProviderMessage {
   providerMessageId: string;
   providerThreadId: string;
+  /** RFC822 Message-Id header, used to set In-Reply-To/References on replies. */
+  internetMessageId: string | null;
   from: Address;
   to: Address[];
   cc: Address[];

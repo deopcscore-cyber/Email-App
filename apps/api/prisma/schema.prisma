@@ -220,6 +220,14 @@ model Message {
   threadId          String
   accountId         String
   providerMessageId String?
+  // Provider-side folder as of the last sync -- null for local-only
+  // messages (drafts/queued) never yet round-tripped through the provider.
+  // A thread's folder is the highest-priority folder across its messages
+  // (see effectiveThreadFolder), not just whichever message synced last.
+  folder            Folder?
+  // RFC822 Message-Id header, needed to set In-Reply-To/References on
+  // replies so recipients thread them instead of seeing a new email.
+  internetMessageId String?
   fromAddress       Json
   toAddresses       Json
   ccAddresses       Json       @default("[]")

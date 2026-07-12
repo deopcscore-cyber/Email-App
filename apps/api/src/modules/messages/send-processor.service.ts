@@ -61,6 +61,16 @@ export class SendProcessorService {
               content: await readFile(join(UPLOAD_DIR, a.storageKey as string)),
             })),
         );
+        // Without In-Reply-To/References, the recipient's client has no way
+        // to match this against the original and threads it as a new email.
+        let inReplyTo: string | undefined;
+        if (message.replyToMessageId !== null) {
+          const parent = await this.prisma.message.findUnique({
+            where: { id: message.replyToMessageId },
+            select: { internetMessageId: true },
+          });
+          inReplyTo = parent?.internetMessageId ?? undefined;
+        }
         const result = await provider.send(accessToken, {
           to: message.toAddresses as Address[],
           cc: message.ccAddresses as Address[],
@@ -68,6 +78,7 @@ export class SendProcessorService {
           subject: message.subject,
           bodyHtml: message.bodyHtml ?? "",
           attachments,
+          inReplyTo,
           providerThreadId: message.thread.providerThreadId.startsWith("local-")
             ? undefined
             : message.thread.providerThreadId,

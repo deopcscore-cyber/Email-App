@@ -210,6 +210,7 @@ export class GmailProvider implements MailProvider {
     return {
       providerMessageId: msg.id,
       providerThreadId: msg.threadId,
+      internetMessageId: header(msg, "Message-Id") ?? null,
       from: fromList[0] ?? { name: null, email: "unknown@unknown" },
       to: parseAddressList(header(msg, "To")),
       cc: parseAddressList(header(msg, "Cc")),

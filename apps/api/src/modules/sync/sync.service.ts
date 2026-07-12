@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { Category, EmailAccount, Prisma } from "@prisma/client";
+import type { Category, EmailAccount, Folder, Prisma } from "@prisma/client";
 import type { Address } from "@novamail/shared";
 import { QueueService } from "../../jobs/queue.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -74,6 +74,31 @@ function classifyCategory(from: Address): Category {
     return "PROMOTIONS";
   }
   return "PRIMARY";
+}
+
+// Higher wins when a thread's messages disagree on folder -- e.g. an inbound
+// message (INBOX) and your own reply to it (SENT) belong to the same thread,
+// and the thread must stay in Inbox rather than getting reclassified as Sent
+// just because the reply was the most recently synced message.
+const FOLDER_PRIORITY: Record<Folder, number> = {
+  TRASH: 5,
+  SPAM: 4,
+  INBOX: 3,
+  DRAFTS: 2,
+  SENT: 1,
+  ARCHIVE: 0,
+};
+
+/** Aggregates a thread's folder from its messages' provider-synced folders.
+ * Returns undefined when none are known yet (e.g. only local drafts). */
+export function effectiveThreadFolder(
+  folders: (Folder | null)[],
+): Folder | undefined {
+  const known = folders.filter((f): f is Folder => f !== null);
+  if (known.length === 0) return undefined;
+  return known.reduce((best, f) =>
+    FOLDER_PRIORITY[f] > FOLDER_PRIORITY[best] ? f : best,
+  );
 }
 
 @Injectable()
@@ -353,6 +378,8 @@ export class SyncService {
         threadId: thread.id,
         accountId: account.id,
         providerMessageId: msg.providerMessageId,
+        internetMessageId: msg.internetMessageId,
+        folder: msg.folder,
         fromAddress: msg.from as Prisma.InputJsonValue,
         toAddresses: msg.to as Prisma.InputJsonValue[],
         ccAddresses: msg.cc as Prisma.InputJsonValue[],
@@ -378,6 +405,10 @@ export class SyncService {
         isRead: msg.isRead,
         bodyHtml: msg.bodyHtml,
         bodyText: msg.bodyText,
+        folder: msg.folder,
+        ...(msg.internetMessageId !== null && {
+          internetMessageId: msg.internetMessageId,
+        }),
       },
     });
 
@@ -400,7 +431,7 @@ export class SyncService {
       },
     });
 
-    await this.recomputeThread(thread.id, account.email, msg.folder);
+    await this.recomputeThread(thread.id, account.email);
     return { threadId: thread.id, isNewInboxMessage };
   }
 
@@ -408,7 +439,6 @@ export class SyncService {
   private async recomputeThread(
     threadId: string,
     accountEmail: string,
-    latestFolder?: ProviderMessage["folder"],
   ): Promise<void> {
     const messages = await this.prisma.message.findMany({
       where: { threadId },
@@ -419,6 +449,7 @@ export class SyncService {
         snippet: true,
         isRead: true,
         receivedAt: true,
+        folder: true,
         attachments: { select: { id: true }, take: 1 },
       },
     });
@@ -469,7 +500,10 @@ export class SyncService {
           latestInbound.toAddresses as Address[],
         ),
         category: classifyCategory(latestInbound.fromAddress as Address),
-        ...(latestFolder !== undefined && { folder: latestFolder }),
+        ...((): { folder?: Folder } => {
+          const folder = effectiveThreadFolder(messages.map((m) => m.folder));
+          return folder !== undefined ? { folder } : {};
+        })(),
       },
     });
   }
