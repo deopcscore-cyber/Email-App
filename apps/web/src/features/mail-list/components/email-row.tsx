@@ -131,11 +131,11 @@ export const EmailRow = memo(function EmailRow({
           </div>
         </div>
 
-        {/* Hover quick actions */}
-        {/* Always visible on mobile (no hover state to reveal them, and
-            swipe gesture reliability varies by device) as a tap fallback;
-            hover-gated on desktop where they'd otherwise clutter the row. */}
-        <span className="absolute right-2 top-1.5 flex items-center gap-1 rounded-md border border-border bg-surface p-0.5 opacity-100 shadow-sm transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
+        {/* Hover quick actions -- desktop only. On mobile these sat on an
+            absolutely-positioned overlay directly on top of the timestamp
+            with a solid background, hiding it entirely whenever this was
+            forced visible; mobile's equivalent is the swipe gesture. */}
+        <span className="absolute right-2 top-1.5 flex items-center gap-1 rounded-md border border-border bg-surface p-0.5 opacity-0 shadow-sm transition-opacity focus-within:opacity-100 group-hover:opacity-100">
           <motion.button
             type="button"
             aria-label="Archive"
