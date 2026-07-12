@@ -78,6 +78,11 @@ export const EmailRow = memo(function EmailRow({
             >
               {displayName(from)}
             </span>
+            {thread.messageCount > 1 && (
+              <span className="shrink-0 text-[12px] text-muted-foreground">
+                {thread.messageCount}
+              </span>
+            )}
             <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground transition-opacity group-hover:opacity-0">
               {thread.isPinned && (
                 <Pin className="size-3 text-accent" aria-label="Pinned" />

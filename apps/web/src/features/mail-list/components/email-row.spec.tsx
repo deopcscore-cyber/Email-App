@@ -45,6 +45,36 @@ describe("EmailRow", () => {
     expect(screen.getByText(/here's the plan for Q2/)).toBeInTheDocument();
   });
 
+  it("shows the message count next to the sender for multi-message threads", () => {
+    render(
+      <EmailRow
+        thread={makeThread({ messageCount: 4 })}
+        selected={false}
+        focused={false}
+        onSelect={vi.fn()}
+        onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onTrash={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("4")).toBeInTheDocument();
+  });
+
+  it("omits the message count for single-message threads", () => {
+    render(
+      <EmailRow
+        thread={makeThread({ messageCount: 1 })}
+        selected={false}
+        focused={false}
+        onSelect={vi.fn()}
+        onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onTrash={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("1")).not.toBeInTheDocument();
+  });
+
   it("calls onSelect with the thread id when clicked", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
