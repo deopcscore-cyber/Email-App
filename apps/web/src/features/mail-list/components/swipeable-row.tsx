@@ -73,7 +73,14 @@ export function SwipeableRow({
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.55}
-        style={{ x }}
+        // Without this, the browser's own touch handling races Framer
+        // Motion's for ownership of the gesture inside a vertically
+        // scrollable list -- it can look like a swipe is happening (partial
+        // movement renders) while the browser quietly cancels it as a
+        // scroll attempt before a clean dragend ever fires, so the action
+        // never triggers. This tells the browser vertical touch movement is
+        // always native scrolling, leaving horizontal exclusively to us.
+        style={{ x, touchAction: "pan-y" }}
         onDragEnd={handleDragEnd}
         className="relative bg-background"
       >

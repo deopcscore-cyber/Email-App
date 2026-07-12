@@ -145,7 +145,10 @@ export const EmailRow = memo(function EmailRow({
         </div>
 
         {/* Hover quick actions */}
-        <span className="absolute right-2 top-1.5 flex items-center gap-1 rounded-md border border-border bg-surface p-0.5 opacity-0 shadow-sm transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        {/* Always visible on mobile (no hover state to reveal them, and
+            swipe gesture reliability varies by device) as a tap fallback;
+            hover-gated on desktop where they'd otherwise clutter the row. */}
+        <span className="absolute right-2 top-1.5 flex items-center gap-1 rounded-md border border-border bg-surface p-0.5 opacity-100 shadow-sm transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
           <motion.button
             type="button"
             aria-label="Archive"
