@@ -106,13 +106,18 @@ export class SyncService {
         syncStatus: { in: ["ACTIVE", "ERROR"] },
         encryptedRefreshToken: { not: { startsWith: "seed-" } },
       },
-      select: { id: true },
+      select: { id: true, syncCursor: true },
     });
     for (const account of accounts) {
+      // An account can end up ACTIVE/ERROR with no cursor if a backfill
+      // never finished (crashed worker, exhausted retries) -- delta is a
+      // no-op without one, which would otherwise strand it silently. Retry
+      // the backfill instead so a transient failure self-heals.
+      const kind = account.syncCursor === null ? "backfill" : "delta";
       await this.queues.enqueue(
         "sync",
-        { kind: "delta", accountId: account.id },
-        { jobId: `delta-${account.id}-${Math.floor(Date.now() / 60_000)}` },
+        { kind, accountId: account.id },
+        { jobId: `${kind}-${account.id}-${Math.floor(Date.now() / 60_000)}` },
       );
     }
   }
@@ -133,47 +138,58 @@ export class SyncService {
       data: { syncStatus: "BACKFILLING" },
     });
 
-    const provider = this.providerFor(account);
-    const accessToken = await this.broker.accessTokenFor(accountId);
-    // Cursor first: changes that arrive during backfill are replayed by delta.
-    const cursor = await provider.currentCursor(accessToken);
+    // A failure partway through must not leave the account stuck in
+    // BACKFILLING forever -- pollAll only retries ACTIVE/ERROR accounts, so
+    // an uncaught throw here would silently and permanently stop sync.
+    try {
+      const provider = this.providerFor(account);
+      const accessToken = await this.broker.accessTokenFor(accountId);
+      // Cursor first: changes that arrive during backfill are replayed by delta.
+      const cursor = await provider.currentCursor(accessToken);
 
-    let pageToken: string | undefined;
-    let imported = 0;
-    const MAX_BACKFILL = 2_000;
-    do {
-      const page = await provider.listMessages(accessToken, pageToken);
-      for (const msg of page.messages) {
-        await this.upsertMessage(account, msg);
-      }
-      imported += page.messages.length;
-      pageToken = page.nextPageToken ?? undefined;
+      let pageToken: string | undefined;
+      let imported = 0;
+      const MAX_BACKFILL = 2_000;
+      do {
+        const page = await provider.listMessages(accessToken, pageToken);
+        for (const msg of page.messages) {
+          await this.upsertMessage(account, msg);
+        }
+        imported += page.messages.length;
+        pageToken = page.nextPageToken ?? undefined;
 
+        await this.events.publish(account.userId, {
+          type: "sync.progress",
+          accountId,
+          percent: Math.min(99, Math.round((imported / MAX_BACKFILL) * 100)),
+        });
+        await this.events.publish(account.userId, {
+          type: "mail.updated",
+          threadIds: [],
+        });
+      } while (pageToken !== undefined && imported < MAX_BACKFILL);
+
+      await this.prisma.emailAccount.update({
+        where: { id: accountId },
+        data: {
+          syncStatus: "ACTIVE",
+          syncCursor: cursor,
+          lastSyncedAt: new Date(),
+        },
+      });
       await this.events.publish(account.userId, {
         type: "sync.progress",
         accountId,
-        percent: Math.min(99, Math.round((imported / MAX_BACKFILL) * 100)),
+        percent: 100,
       });
-      await this.events.publish(account.userId, {
-        type: "mail.updated",
-        threadIds: [],
+      this.logger.log(`Backfilled ${imported} messages for ${account.email}`);
+    } catch (err) {
+      await this.prisma.emailAccount.update({
+        where: { id: accountId },
+        data: { syncStatus: "ERROR" },
       });
-    } while (pageToken !== undefined && imported < MAX_BACKFILL);
-
-    await this.prisma.emailAccount.update({
-      where: { id: accountId },
-      data: {
-        syncStatus: "ACTIVE",
-        syncCursor: cursor,
-        lastSyncedAt: new Date(),
-      },
-    });
-    await this.events.publish(account.userId, {
-      type: "sync.progress",
-      accountId,
-      percent: 100,
-    });
-    this.logger.log(`Backfilled ${imported} messages for ${account.email}`);
+      throw err;
+    }
   }
 
   /** Replays provider changes since the stored cursor. */

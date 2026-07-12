@@ -2,11 +2,12 @@
 
 import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Menu, PenLine } from "lucide-react";
 import { transitions } from "@/lib/motion";
 import { useUi } from "@/contexts/ui-context";
 import { useCompose } from "@/features/compose/compose-context";
+import { useSession } from "@/features/auth/use-session";
 import { Sidebar } from "./sidebar";
 
 /**
@@ -18,11 +19,21 @@ export function MobileNav() {
   const { mobileNavOpen, setMobileNavOpen } = useUi();
   const { openNew } = useCompose();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { data: user } = useSession();
 
   // Close the drawer whenever navigation happens (link taps inside it).
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname, setMobileNavOpen]);
+
+  const activeAccountId = searchParams.get("account");
+  const activeAccount = user?.accounts.find((a) => a.id === activeAccountId);
+  // With a single connected account there's nothing to unify -- just show
+  // its address, same as the filtered single-account case below.
+  const soleAccount = user?.accounts.length === 1 ? user.accounts[0] : undefined;
+  const headerLabel =
+    (activeAccount ?? soleAccount)?.email ?? "All inboxes";
 
   return (
     <>
@@ -35,7 +46,9 @@ export function MobileNav() {
         >
           <Menu className="size-5" aria-hidden />
         </button>
-        <span className="text-[14px] font-semibold tracking-tight">NovaMail</span>
+        <span className="min-w-0 truncate px-2 text-[13px] font-semibold tracking-tight">
+          {headerLabel}
+        </span>
         <button
           type="button"
           onClick={() => openNew()}
