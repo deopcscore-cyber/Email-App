@@ -8,7 +8,14 @@ import type {
   SessionUserDto,
   UpdateSettingsDto,
 } from "@novamail/shared";
-import { fetchSession, login, logout, register, updateSettings } from "./api";
+import {
+  fetchSession,
+  login,
+  logout,
+  register,
+  removeAccount,
+  updateSettings,
+} from "./api";
 
 export const sessionQueryKey = ["auth", "session"] as const;
 
@@ -54,6 +61,20 @@ export function useLogin() {
     onSuccess: (user) => {
       queryClient.setQueryData<SessionUserDto>(sessionQueryKey, user);
       router.replace("/inbox");
+    },
+  });
+}
+
+export function useRemoveAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => removeAccount(accountId),
+    onSuccess: (_data, accountId) => {
+      queryClient.setQueryData<SessionUserDto>(sessionQueryKey, (prev) =>
+        prev === undefined
+          ? prev
+          : { ...prev, accounts: prev.accounts.filter((a) => a.id !== accountId) },
+      );
     },
   });
 }

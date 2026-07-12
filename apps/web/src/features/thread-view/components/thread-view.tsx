@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { useUi } from "@/contexts/ui-context";
 import { useCompose } from "@/features/compose/compose-context";
+import { useSession } from "@/features/auth/use-session";
 import { useMailSelection } from "@/features/mail-list/hooks/use-mail-selection";
 import { useTriageThread } from "@/features/mail-list/hooks/use-threads";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
@@ -53,11 +54,13 @@ function ToolbarButton({
 export function ThreadView() {
   const { selectedId, close } = useMailSelection();
   const { data: thread, isPending } = useThread(selectedId);
+  const { data: user } = useSession();
   const triage = useTriageThread();
   const { toggleAiPanel } = useUi();
   const { openFromThread } = useCompose();
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 767px)");
+  const accountEmail = user?.accounts.find((a) => a.id === thread?.accountId)?.email;
   useMarkReadOnOpen(selectedId, thread?.unreadCount);
 
   const hasThread = selectedId !== null && thread !== undefined;
@@ -280,6 +283,7 @@ export function ThreadView() {
                     <MessageCard
                       message={message}
                       defaultExpanded={i === visible.length - 1 || !message.isRead}
+                      accountEmail={accountEmail}
                     />
                   </motion.div>
                 ))}

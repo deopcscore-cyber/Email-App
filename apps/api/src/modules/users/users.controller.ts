@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   NotFoundException,
+  Param,
   Patch,
   UseGuards,
 } from "@nestjs/common";
@@ -44,5 +47,14 @@ export class UsersController {
     @Body(new ZodValidationPipe(updateSettingsSchema)) body: UpdateSettingsDto,
   ): Promise<UserSettingsDto> {
     return this.users.updateSettings(user.id, body);
+  }
+
+  @Delete("accounts/:id")
+  @HttpCode(204)
+  async removeAccount(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") accountId: string,
+  ): Promise<void> {
+    await this.users.removeAccount(user.id, accountId);
   }
 }

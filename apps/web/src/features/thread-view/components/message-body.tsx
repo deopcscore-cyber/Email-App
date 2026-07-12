@@ -48,8 +48,8 @@ function buildSrcDoc(sanitizedHtml: string): string {
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html,body{margin:0;padding:0;background:#fff;color:#1a1a1a;}
-  body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.6;word-wrap:break-word;overflow-wrap:anywhere;}
+  html{margin:0;padding:0;background:#fff;}
+  body{margin:0;padding:20px;background:#fff;color:#1a1a1a;box-sizing:border-box;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.6;word-wrap:break-word;overflow-wrap:anywhere;}
   img{max-width:100%;height:auto;}
   table{max-width:100%!important;}
   a{color:#6E56CF;}

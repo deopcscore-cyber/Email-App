@@ -9,7 +9,7 @@ import {
   FileText,
   Image as ImageIcon,
 } from "lucide-react";
-import type { AttachmentDto, MessageDto } from "@novamail/shared";
+import type { Address, AttachmentDto, MessageDto } from "@novamail/shared";
 import {
   avatarHue,
   displayName,
@@ -17,10 +17,80 @@ import {
   formatFullTime,
   initials,
 } from "@/lib/format";
+import { useOverlayScope, useShortcut } from "@/features/shortcuts/use-shortcut";
+import { popIn } from "@/lib/motion";
 import { attachmentUrl } from "../lib/attachment-url";
 import { transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { MessageBody } from "./message-body";
+
+/** Short collapsed-row summary, e.g. Gmail's "to me" -- the full recipient
+ * list lives in the details popover instead of getting truncated inline. */
+function toSummary(to: Address[], accountEmail: string | undefined): string {
+  if (to.length === 0) return "";
+  const isMe = (a: Address): boolean =>
+    accountEmail !== undefined && a.email.toLowerCase() === accountEmail.toLowerCase();
+  if (to.length === 1) return isMe(to[0] as Address) ? "to me" : `to ${displayName(to[0] as Address)}`;
+  const others = to.filter((a) => !isMe(a));
+  if (others.length === to.length - 1 && others.length > 0) {
+    return others.length === 1
+      ? `to me, ${displayName(others[0] as Address)}`
+      : `to me and ${others.length} others`;
+  }
+  return `to ${displayName(to[0] as Address)} and ${to.length - 1} others`;
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-3 py-1 text-[12px]">
+      <span className="w-14 shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 flex-1 break-words">{value}</span>
+    </div>
+  );
+}
+
+function addressList(list: Address[]): string {
+  return list.map((a) => `${displayName(a)} <${a.email}>`).join(", ");
+}
+
+function MessageDetails({
+  message,
+  open,
+  onClose,
+}: {
+  message: MessageDto;
+  open: boolean;
+  onClose: () => void;
+}) {
+  useOverlayScope(open);
+  useShortcut("escape", onClose, { scope: "overlay", enabled: open });
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={onClose} aria-hidden />
+          <motion.div
+            role="dialog"
+            aria-label="Message details"
+            variants={popIn}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            style={{ transformOrigin: "top left" }}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute left-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-3 shadow-2xl"
+          >
+            <DetailRow label="from" value={`${displayName(message.from)} <${message.from.email}>`} />
+            {message.to.length > 0 && <DetailRow label="to" value={addressList(message.to)} />}
+            {message.cc.length > 0 && <DetailRow label="cc" value={addressList(message.cc)} />}
+            <DetailRow label="date" value={formatFullTime(message.receivedAt)} />
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
 
 const PREVIEWABLE_TYPES = new Set(["application/pdf"]);
 
@@ -105,11 +175,14 @@ function AttachmentChip({ attachment }: { attachment: AttachmentDto }) {
 export function MessageCard({
   message,
   defaultExpanded,
+  accountEmail,
 }: {
   message: MessageDto;
   defaultExpanded: boolean;
+  accountEmail?: string;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const hue = avatarHue(message.from.email);
 
   return (
@@ -119,11 +192,18 @@ export function MessageCard({
         expanded && "shadow-sm",
       )}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((v) => !v);
+          }
+        }}
         aria-expanded={expanded}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+        className="relative flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left"
       >
         <span
           aria-hidden
@@ -135,13 +215,31 @@ export function MessageCard({
           {initials(message.from)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-2">
+          <span className="flex items-baseline gap-1.5">
             <span className="truncate text-[13px] font-semibold">
               {displayName(message.from)}
             </span>
-            <span className="truncate text-xs text-muted-foreground">
-              to {message.to.map((a) => displayName(a)).join(", ")}
-            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailsOpen((v) => !v);
+              }}
+              aria-expanded={detailsOpen}
+              aria-label="Show message details"
+              className="flex shrink-0 items-center gap-0.5 rounded px-1 text-xs text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+            >
+              {toSummary(message.to, accountEmail)}
+              <ChevronDown
+                aria-hidden
+                className={cn("size-3 transition-transform", detailsOpen && "rotate-180")}
+              />
+            </button>
+            <MessageDetails
+              message={message}
+              open={detailsOpen}
+              onClose={() => setDetailsOpen(false)}
+            />
           </span>
           {expanded ? (
             <span className="block truncate text-[11px] text-muted-foreground">
@@ -166,7 +264,7 @@ export function MessageCard({
             expanded && "rotate-180",
           )}
         />
-      </button>
+      </div>
 
       <AnimatePresence initial={false}>
         {expanded && (

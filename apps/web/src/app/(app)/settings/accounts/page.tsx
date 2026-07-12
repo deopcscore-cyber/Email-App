@@ -1,9 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { X } from "lucide-react";
 import { linkAccountUrl } from "@/features/auth/api";
 import { GoogleLogo, MicrosoftLogo } from "@/features/auth/components/provider-logos";
-import { useSession } from "@/features/auth/use-session";
+import { useRemoveAccount, useSession } from "@/features/auth/use-session";
 
 const ERROR_MESSAGES: Record<string, string> = {
   cancelled: "Connecting was cancelled. Try again whenever you're ready.",
@@ -37,6 +39,16 @@ export default function AccountsSettingsPage() {
   const error = searchParams.get("error");
   const errorMessage =
     error === null ? null : (ERROR_MESSAGES[error] ?? "Something went wrong connecting that account.");
+  const removeAccount = useRemoveAccount();
+
+  function handleRemove(id: string, label: string): void {
+    if (!window.confirm(`Remove ${label}? Its mail stays intact on the provider — this only disconnects it from NovaMail.`)) {
+      return;
+    }
+    removeAccount.mutate(id, {
+      onError: () => toast.error("Couldn't remove that account. Try again."),
+    });
+  }
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-8">
@@ -86,6 +98,18 @@ export default function AccountsSettingsPage() {
             >
               {STATUS_LABEL[account.syncStatus] ?? account.syncStatus}
             </span>
+            <button
+              type="button"
+              onClick={() =>
+                handleRemove(account.id, account.displayName ?? account.email)
+              }
+              disabled={removeAccount.isPending}
+              aria-label={`Remove ${account.displayName ?? account.email}`}
+              title="Remove account"
+              className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
           </li>
         ))}
       </ul>

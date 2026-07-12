@@ -27,6 +27,10 @@ export function logout(): Promise<void> {
   return api<void>("/auth/logout", { method: "POST" });
 }
 
+export function removeAccount(accountId: string): Promise<void> {
+  return api<void>(`/me/accounts/${accountId}`, { method: "DELETE" });
+}
+
 /** Mailbox connect entry points are full-page navigations, not XHR — they
  * require an existing NovaMail session and hand off to the provider. */
 export function linkAccountUrl(provider: "google" | "microsoft"): string {

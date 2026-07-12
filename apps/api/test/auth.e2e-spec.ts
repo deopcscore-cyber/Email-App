@@ -185,4 +185,30 @@ describe("Auth + CSRF (e2e)", () => {
     });
     expect(res.status).toBe(401);
   });
+
+  it("removes a connected account and drops it from the session bootstrap", async () => {
+    const { cookieHeader, accountId } = await seedSignedInUser(app);
+
+    const del = await request(app.getHttpServer())
+      .delete(`/api/v1/me/accounts/${accountId}`)
+      .set("Cookie", cookieHeader)
+      .set(CSRF_TEST_HEADERS);
+    expect(del.status).toBe(204);
+
+    const session = await request(app.getHttpServer())
+      .get("/api/v1/auth/session")
+      .set("Cookie", cookieHeader);
+    expect(session.body.accounts).toEqual([]);
+  });
+
+  it("rejects removing another user's account", async () => {
+    const { accountId } = await seedSignedInUser(app, { email: "victim@novamail.dev" });
+    const { cookieHeader } = await seedSignedInUser(app, { email: "attacker@novamail.dev" });
+
+    const res = await request(app.getHttpServer())
+      .delete(`/api/v1/me/accounts/${accountId}`)
+      .set("Cookie", cookieHeader)
+      .set(CSRF_TEST_HEADERS);
+    expect(res.status).toBe(404);
+  });
 });
