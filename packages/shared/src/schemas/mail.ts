@@ -29,9 +29,9 @@ export const mailViewSchema = z.enum([
 ]);
 export type MailView = z.infer<typeof mailViewSchema>;
 
-/** Inbox tabs from the NovaMail design; AI assigns priority in Phase 5. */
-export const listTabSchema = z.enum(["focused", "other"]);
-export type ListTab = z.infer<typeof listTabSchema>;
+/** Gmail-style inbox category tabs. */
+export const categorySchema = z.enum(["PRIMARY", "SOCIAL", "PROMOTIONS"]);
+export type Category = z.infer<typeof categorySchema>;
 
 export const labelDtoSchema = z.object({
   id: z.string(),
@@ -52,6 +52,7 @@ export const threadListItemSchema = z.object({
   subject: z.string(),
   snippet: z.string(),
   folder: folderSchema,
+  category: categorySchema,
   participants: z.array(addressSchema),
   messageCount: z.number().int(),
   unreadCount: z.number().int(),

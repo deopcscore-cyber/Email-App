@@ -7,7 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type {
-  ListTab,
+  Category,
   MailView,
   ThreadPageDto,
   TriagePatchDto,
@@ -16,22 +16,22 @@ import { fetchCounts, fetchThreads, patchThread } from "../api/threads.api";
 
 export const threadKeys = {
   all: ["threads"] as const,
-  list: (view: MailView, tab?: ListTab, labelId?: string, accountId?: string) =>
-    ["threads", "list", view, tab ?? null, labelId ?? null, accountId ?? null] as const,
+  list: (view: MailView, category?: Category, labelId?: string, accountId?: string) =>
+    ["threads", "list", view, category ?? null, labelId ?? null, accountId ?? null] as const,
   detail: (id: string) => ["threads", "detail", id] as const,
   counts: ["threads", "counts"] as const,
 };
 
 export function useThreads(
   view: MailView,
-  tab?: ListTab,
+  category?: Category,
   labelId?: string,
   accountId?: string,
 ) {
   return useInfiniteQuery({
-    queryKey: threadKeys.list(view, tab, labelId, accountId),
+    queryKey: threadKeys.list(view, category, labelId, accountId),
     queryFn: ({ pageParam }) =>
-      fetchThreads({ view, tab, labelId, accountId, cursor: pageParam }),
+      fetchThreads({ view, category, labelId, accountId, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });

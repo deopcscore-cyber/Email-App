@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { EmailAccount, Prisma } from "@prisma/client";
+import type { Category, EmailAccount, Prisma } from "@prisma/client";
 import type { Address } from "@novamail/shared";
 import { QueueService } from "../../jobs/queue.service";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -36,6 +36,44 @@ function isLikelyFocused(accountEmail: string, from: Address, to: Address[]): bo
     (a) => a.email.toLowerCase() === accountEmail.toLowerCase(),
   );
   return directlyAddressed && !BULK_SENDER_PATTERN.test(from.email);
+}
+
+// Domains social platforms send account notifications from -- covers the
+// major ones; an unmatched social sender just falls into Primary, which is
+// a safe default rather than a broken one.
+const SOCIAL_DOMAINS = [
+  "facebookmail.com",
+  "facebook.com",
+  "twitter.com",
+  "x.com",
+  "linkedin.com",
+  "instagram.com",
+  "pinterest.com",
+  "tiktok.com",
+  "reddit.com",
+  "snapchat.com",
+  "discord.com",
+  "threads.net",
+  "meetup.com",
+];
+
+/**
+ * Heuristic Gmail-style category classifier -- same no-LLM-per-message
+ * constraint as isLikelyFocused. Social is a domain allowlist (these
+ * senders are consistent enough to match reliably); Promotions reuses the
+ * bulk-sender pattern already proven out for Focused/Other. Everything
+ * else is Primary, which is the safe default for a heuristic that will
+ * always miss some real newsletters and social mentions.
+ */
+function classifyCategory(from: Address): Category {
+  const domain = from.email.split("@")[1]?.toLowerCase() ?? "";
+  if (SOCIAL_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) {
+    return "SOCIAL";
+  }
+  if (BULK_SENDER_PATTERN.test(from.email)) {
+    return "PROMOTIONS";
+  }
+  return "PRIMARY";
 }
 
 @Injectable()
@@ -414,6 +452,7 @@ export class SyncService {
           latestInbound.fromAddress as Address,
           latestInbound.toAddresses as Address[],
         ),
+        category: classifyCategory(latestInbound.fromAddress as Address),
         ...(latestFolder !== undefined && { folder: latestFolder }),
       },
     });

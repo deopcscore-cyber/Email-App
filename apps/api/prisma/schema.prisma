@@ -166,6 +166,12 @@ enum Folder {
   ARCHIVE
 }
 
+enum Category {
+  PRIMARY
+  SOCIAL
+  PROMOTIONS
+}
+
 model Thread {
   id               String    @id @default(cuid())
   accountId        String
@@ -173,6 +179,7 @@ model Thread {
   subject          String    @default("")
   snippet          String    @default("")
   folder           Folder    @default(INBOX)
+  category         Category  @default(PRIMARY)
   participants     Json
   messageCount     Int       @default(1)
   unreadCount      Int       @default(0)
@@ -195,6 +202,7 @@ model Thread {
   @@index([accountId, folder, lastMessageAt(sort: Desc)])
   @@index([accountId, snoozedUntil])
   @@index([accountId, isPriority, lastMessageAt(sort: Desc)])
+  @@index([accountId, category, lastMessageAt(sort: Desc)])
   @@map("threads")
 }
 

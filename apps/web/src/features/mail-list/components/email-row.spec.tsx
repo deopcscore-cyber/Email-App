@@ -12,6 +12,7 @@ function makeThread(overrides: Partial<ThreadListItemDto> = {}): ThreadListItemD
     subject: "Q2 Campaign Strategy",
     snippet: "Hi Dami, here's the plan for Q2.",
     folder: "INBOX",
+    category: "PRIMARY",
     participants: [{ name: "Sarah Chen", email: "sarah@acme.com" }],
     messageCount: 1,
     unreadCount: 1,

@@ -4,6 +4,7 @@ import { QueueService } from "../../jobs/queue.service";
 import { EventsService } from "../events/events.service";
 import type {
   Address,
+  Category,
   LabelDto,
   MailView,
   MessageDto,
@@ -99,15 +100,15 @@ export class ThreadsService {
     userId: string,
     view: MailView,
     options: {
-      tab?: "focused" | "other";
+      category?: Category;
       cursor?: string;
       accountId?: string;
       labelId?: string;
     },
   ): Promise<ThreadPageDto> {
     const where = this.viewWhere(userId, view, options.accountId);
-    if (view === "inbox" && options.tab !== undefined) {
-      where.isPriority = options.tab === "focused";
+    if (view === "inbox" && options.category !== undefined) {
+      where.category = options.category;
     }
     if (options.labelId !== undefined) {
       where.labels = { some: { labelId: options.labelId } };
@@ -311,6 +312,7 @@ export class ThreadsService {
       subject: t.subject,
       snippet: t.snippet,
       folder: t.folder,
+      category: t.category,
       participants: t.participants as Address[],
       messageCount: t.messageCount,
       unreadCount: t.unreadCount,

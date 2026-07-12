@@ -1,5 +1,5 @@
 import type {
-  ListTab,
+  Category,
   MailView,
   ThreadCountsDto,
   ThreadDetailDto,
@@ -11,13 +11,13 @@ import { api } from "@/lib/api-client";
 
 export function fetchThreads(params: {
   view: MailView;
-  tab?: ListTab;
+  category?: Category;
   cursor?: string;
   labelId?: string;
   accountId?: string;
 }): Promise<ThreadPageDto> {
   const qs = new URLSearchParams({ view: params.view });
-  if (params.tab !== undefined) qs.set("tab", params.tab);
+  if (params.category !== undefined) qs.set("category", params.category);
   if (params.cursor !== undefined) qs.set("cursor", params.cursor);
   if (params.labelId !== undefined) qs.set("labelId", params.labelId);
   if (params.accountId !== undefined) qs.set("accountId", params.accountId);

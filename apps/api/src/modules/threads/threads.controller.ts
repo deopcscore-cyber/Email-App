@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import {
-  listTabSchema,
+  categorySchema,
   mailViewSchema,
   triagePatchSchema,
   type ThreadCountsDto,
@@ -35,7 +35,7 @@ export class ThreadsController {
   async list(
     @CurrentUser() user: AuthenticatedUser,
     @Query("view") viewRaw: string | undefined,
-    @Query("tab") tabRaw: string | undefined,
+    @Query("category") categoryRaw: string | undefined,
     @Query("cursor") cursor: string | undefined,
     @Query("accountId") accountId: string | undefined,
     @Query("labelId") labelId: string | undefined,
@@ -44,13 +44,13 @@ export class ThreadsController {
     if (!view.success) {
       throw new BadRequestException(`Unknown view: ${viewRaw}`);
     }
-    const tab =
-      tabRaw !== undefined ? listTabSchema.safeParse(tabRaw) : undefined;
-    if (tab !== undefined && !tab.success) {
-      throw new BadRequestException(`Unknown tab: ${tabRaw}`);
+    const category =
+      categoryRaw !== undefined ? categorySchema.safeParse(categoryRaw) : undefined;
+    if (category !== undefined && !category.success) {
+      throw new BadRequestException(`Unknown category: ${categoryRaw}`);
     }
     return this.threads.list(user.id, view.data, {
-      tab: tab?.data,
+      category: category?.data,
       cursor,
       accountId: accountId === "unified" ? undefined : accountId,
       labelId,

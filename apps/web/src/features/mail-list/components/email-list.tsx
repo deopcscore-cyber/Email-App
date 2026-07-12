@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search } from "lucide-react";
+import { Inbox, Search, Tag, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { fadeUp, rowExit, staggerChildren } from "@/lib/motion";
-import type { ListTab, MailView } from "@novamail/shared";
+import type { Category, MailView } from "@novamail/shared";
 import { useUi } from "@/contexts/ui-context";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,12 @@ const VIEW_TITLES: Record<MailView, string> = {
   trash: "Trash",
 };
 
+const CATEGORY_TABS: { value: Category; label: string; icon: LucideIcon }[] = [
+  { value: "PRIMARY", label: "Primary", icon: Inbox },
+  { value: "SOCIAL", label: "Social", icon: Users },
+  { value: "PROMOTIONS", label: "Promotions", icon: Tag },
+];
+
 export function EmailList({
   view,
   labelId,
@@ -34,10 +41,10 @@ export function EmailList({
   labelId?: string;
   accountId?: string;
 }) {
-  const [tab, setTab] = useState<ListTab>("focused");
-  const effectiveTab = view === "inbox" && labelId === undefined ? tab : undefined;
+  const [category, setCategory] = useState<Category>("PRIMARY");
+  const effectiveCategory = view === "inbox" && labelId === undefined ? category : undefined;
   const { data, isPending, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useThreads(view, effectiveTab, labelId, accountId);
+    useThreads(view, effectiveCategory, labelId, accountId);
   const triage = useTriageThread();
   const { selectedId, select } = useMailSelection();
   const { setPaletteOpen } = useUi();
@@ -131,28 +138,29 @@ export function EmailList({
         </button>
       </div>
 
-      {/* Tabs (inbox only) */}
-      {effectiveTab !== undefined ? (
+      {/* Category tabs (inbox only) */}
+      {effectiveCategory !== undefined ? (
         <div
           role="tablist"
-          aria-label="Inbox tabs"
+          aria-label="Inbox categories"
           className="mx-3 mt-3 flex border-b border-border"
         >
-          {(["focused", "other"] as const).map((t) => (
+          {CATEGORY_TABS.map(({ value, label, icon: Icon }) => (
             <button
-              key={t}
+              key={value}
               role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
+              aria-selected={category === value}
+              onClick={() => setCategory(value)}
               className={cn(
-                "relative px-4 pb-2 text-[13px] font-medium capitalize transition-colors",
-                tab === t
+                "relative flex items-center gap-1.5 px-4 pb-2 text-[13px] font-medium transition-colors",
+                category === value
                   ? "text-accent"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {t}
-              {tab === t && (
+              <Icon className="size-3.5" aria-hidden />
+              {label}
+              {category === value && (
                 <motion.span
                   layoutId="tab-indicator"
                   className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent"
@@ -185,7 +193,7 @@ export function EmailList({
           </div>
         ) : (
           <motion.div
-            key={`${view}:${effectiveTab ?? "all"}:${labelId ?? ""}:${accountId ?? ""}`}
+            key={`${view}:${effectiveCategory ?? "all"}:${labelId ?? ""}:${accountId ?? ""}`}
             variants={staggerChildren(0.03)}
             initial="hidden"
             animate="show"
