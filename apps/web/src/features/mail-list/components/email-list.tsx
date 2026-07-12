@@ -2,13 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Inbox, Search, Tag, Users } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Search } from "lucide-react";
 import { fadeUp, rowExit, staggerChildren } from "@/lib/motion";
-import type { Category, MailView } from "@novamail/shared";
+import type { MailView } from "@novamail/shared";
 import { useUi } from "@/contexts/ui-context";
 import { useShortcut } from "@/features/shortcuts/use-shortcut";
-import { cn } from "@/lib/utils";
 import { useThreads, useTriageThread } from "../hooks/use-threads";
 import { useMailSelection } from "../hooks/use-mail-selection";
 import { EmailRow } from "./email-row";
@@ -26,12 +24,6 @@ const VIEW_TITLES: Record<MailView, string> = {
   trash: "Trash",
 };
 
-const CATEGORY_TABS: { value: Category; label: string; icon: LucideIcon }[] = [
-  { value: "PRIMARY", label: "Primary", icon: Inbox },
-  { value: "SOCIAL", label: "Social", icon: Users },
-  { value: "PROMOTIONS", label: "Promotions", icon: Tag },
-];
-
 export function EmailList({
   view,
   labelId,
@@ -41,10 +33,8 @@ export function EmailList({
   labelId?: string;
   accountId?: string;
 }) {
-  const [category, setCategory] = useState<Category>("PRIMARY");
-  const effectiveCategory = view === "inbox" && labelId === undefined ? category : undefined;
   const { data, isPending, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useThreads(view, effectiveCategory, labelId, accountId);
+    useThreads(view, undefined, labelId, accountId);
   const triage = useTriageThread();
   const { selectedId, select } = useMailSelection();
   const { setPaletteOpen } = useUi();
@@ -138,42 +128,9 @@ export function EmailList({
         </button>
       </div>
 
-      {/* Category tabs (inbox only) */}
-      {effectiveCategory !== undefined ? (
-        <div
-          role="tablist"
-          aria-label="Inbox categories"
-          className="mx-3 mt-3 flex border-b border-border"
-        >
-          {CATEGORY_TABS.map(({ value, label, icon: Icon }) => (
-            <button
-              key={value}
-              role="tab"
-              aria-selected={category === value}
-              onClick={() => setCategory(value)}
-              className={cn(
-                "relative flex items-center gap-1.5 px-4 pb-2 text-[13px] font-medium transition-colors",
-                category === value
-                  ? "text-accent"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="size-3.5" aria-hidden />
-              {label}
-              {category === value && (
-                <motion.span
-                  layoutId="tab-indicator"
-                  className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent"
-                />
-              )}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <h1 className="mx-3 mt-3 border-b border-border px-1 pb-2 text-[13px] font-semibold">
-          {VIEW_TITLES[view]}
-        </h1>
-      )}
+      <h1 className="mx-3 mt-3 border-b border-border px-1 pb-2 text-[13px] font-semibold">
+        {VIEW_TITLES[view]}
+      </h1>
 
       {/* Rows */}
       <div
@@ -193,7 +150,7 @@ export function EmailList({
           </div>
         ) : (
           <motion.div
-            key={`${view}:${effectiveCategory ?? "all"}:${labelId ?? ""}:${accountId ?? ""}`}
+            key={`${view}:${labelId ?? ""}:${accountId ?? ""}`}
             variants={staggerChildren(0.03)}
             initial="hidden"
             animate="show"
