@@ -1,8 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import { X } from "lucide-react";
+import { useOverlayScope, useShortcut } from "@/features/shortcuts/use-shortcut";
+import { popIn } from "@/lib/motion";
 import { linkAccountUrl } from "@/features/auth/api";
 import { GoogleLogo, MicrosoftLogo } from "@/features/auth/components/provider-logos";
 import { useRemoveAccount, useSession } from "@/features/auth/use-session";
@@ -33,22 +37,83 @@ const connectButtonClass =
   "flex items-center justify-center gap-3 rounded-xl border border-border bg-surface-muted " +
   "px-5 py-3 text-sm font-medium transition-colors duration-150 hover:bg-surface";
 
+/** Confirms in-app rather than via window.confirm(), which some browsers
+ * (embedded webviews especially) silently block or auto-dismiss -- when
+ * that happens the click just does nothing, with no error and no way to
+ * tell why. This can't silently no-op the same way. */
+function RemoveAccountButton({ id, label }: { id: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  const removeAccount = useRemoveAccount();
+  const close = (): void => setOpen(false);
+  useOverlayScope(open);
+  useShortcut("escape", close, { scope: "overlay", enabled: open });
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={removeAccount.isPending}
+        aria-label={`Remove ${label}`}
+        title="Remove account"
+        className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
+      >
+        <X className="size-4" aria-hidden />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={close} aria-hidden />
+            <motion.div
+              role="dialog"
+              aria-label={`Remove ${label}?`}
+              variants={popIn}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              style={{ transformOrigin: "top right" }}
+              className="absolute right-0 top-full z-30 mt-1 w-64 rounded-xl border border-border bg-surface p-3 shadow-2xl"
+            >
+              <p className="text-[13px] font-medium">Remove {label}?</p>
+              <p className="mt-1 text-[12px] text-muted-foreground">
+                Its mail stays intact on the provider — this only disconnects
+                it from NovaMail.
+              </p>
+              <div className="mt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={close}
+                  className="rounded-lg px-3 py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-surface-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    close();
+                    removeAccount.mutate(id, {
+                      onError: () => toast.error("Couldn't remove that account. Try again."),
+                    });
+                  }}
+                  className="rounded-lg bg-danger px-3 py-1.5 text-[12px] font-medium text-white transition-opacity hover:opacity-90"
+                >
+                  Remove
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function AccountsSettingsPage() {
   const { data: user } = useSession();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const errorMessage =
     error === null ? null : (ERROR_MESSAGES[error] ?? "Something went wrong connecting that account.");
-  const removeAccount = useRemoveAccount();
-
-  function handleRemove(id: string, label: string): void {
-    if (!window.confirm(`Remove ${label}? Its mail stays intact on the provider — this only disconnects it from NovaMail.`)) {
-      return;
-    }
-    removeAccount.mutate(id, {
-      onError: () => toast.error("Couldn't remove that account. Try again."),
-    });
-  }
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-8">
@@ -98,18 +163,10 @@ export default function AccountsSettingsPage() {
             >
               {STATUS_LABEL[account.syncStatus] ?? account.syncStatus}
             </span>
-            <button
-              type="button"
-              onClick={() =>
-                handleRemove(account.id, account.displayName ?? account.email)
-              }
-              disabled={removeAccount.isPending}
-              aria-label={`Remove ${account.displayName ?? account.email}`}
-              title="Remove account"
-              className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
+            <RemoveAccountButton
+              id={account.id}
+              label={account.displayName ?? account.email}
+            />
           </li>
         ))}
       </ul>

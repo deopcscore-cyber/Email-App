@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { motion } from "framer-motion";
-import { Paperclip, Pin, Star } from "lucide-react";
+import { Archive, Paperclip, Pin, Star, Trash2 } from "lucide-react";
 import type { ThreadListItemDto } from "@novamail/shared";
 import {
   avatarHue,
@@ -18,6 +18,8 @@ interface EmailRowProps {
   focused: boolean;
   onSelect: (id: string) => void;
   onToggleStar: (id: string, starred: boolean) => void;
+  onArchive: (id: string) => void;
+  onTrash: (id: string) => void;
 }
 
 export const EmailRow = memo(function EmailRow({
@@ -26,6 +28,8 @@ export const EmailRow = memo(function EmailRow({
   focused,
   onSelect,
   onToggleStar,
+  onArchive,
+  onTrash,
 }: EmailRowProps) {
   const from = thread.participants[0] ?? { name: null, email: "unknown" };
   const unread = thread.unreadCount > 0;
@@ -132,27 +136,56 @@ export const EmailRow = memo(function EmailRow({
         </div>
       </div>
 
-      {/* Hover star */}
-      <motion.button
-        type="button"
-        aria-label={thread.isStarred ? "Unstar" : "Star"}
-        whileTap={{ scale: 0.75 }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleStar(thread.id, !thread.isStarred);
-        }}
-        className="absolute right-2 top-1.5 rounded-md border border-border bg-surface p-1 opacity-0 shadow-sm transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
-      >
-        <Star
-          className={cn(
-            "size-3.5",
-            thread.isStarred
-              ? "fill-amber-400 text-amber-400"
-              : "text-muted-foreground",
-          )}
-          aria-hidden
-        />
-      </motion.button>
+      {/* Hover quick actions */}
+      <span className="absolute right-2 top-1.5 flex items-center gap-1 rounded-md border border-border bg-surface p-0.5 opacity-0 shadow-sm transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <motion.button
+          type="button"
+          aria-label="Archive"
+          title="Archive"
+          whileTap={{ scale: 0.75 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onArchive(thread.id);
+          }}
+          className="rounded p-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+        >
+          <Archive className="size-3.5" aria-hidden />
+        </motion.button>
+        <motion.button
+          type="button"
+          aria-label="Delete"
+          title="Delete"
+          whileTap={{ scale: 0.75 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onTrash(thread.id);
+          }}
+          className="rounded p-1 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
+        >
+          <Trash2 className="size-3.5" aria-hidden />
+        </motion.button>
+        <motion.button
+          type="button"
+          aria-label={thread.isStarred ? "Unstar" : "Star"}
+          title={thread.isStarred ? "Unstar" : "Star"}
+          whileTap={{ scale: 0.75 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleStar(thread.id, !thread.isStarred);
+          }}
+          className="rounded p-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+        >
+          <Star
+            className={cn(
+              "size-3.5",
+              thread.isStarred
+                ? "fill-amber-400 text-amber-400"
+                : "text-muted-foreground",
+            )}
+            aria-hidden
+          />
+        </motion.button>
+      </span>
     </div>
   );
 });

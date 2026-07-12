@@ -35,6 +35,8 @@ describe("EmailRow", () => {
         focused={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onTrash={vi.fn()}
       />,
     );
     expect(screen.getByText("Sarah Chen")).toBeInTheDocument();
@@ -52,6 +54,8 @@ describe("EmailRow", () => {
         focused={false}
         onSelect={onSelect}
         onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onTrash={vi.fn()}
       />,
     );
     await user.click(screen.getByText("Q2 Campaign Strategy"));
@@ -69,6 +73,8 @@ describe("EmailRow", () => {
         focused={false}
         onSelect={onSelect}
         onToggleStar={onToggleStar}
+        onArchive={vi.fn()}
+        onTrash={vi.fn()}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Star" }));
@@ -84,6 +90,8 @@ describe("EmailRow", () => {
         focused={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onTrash={vi.fn()}
       />,
     );
     expect(screen.getByRole("button", { name: "Unstar" })).toBeInTheDocument();
@@ -97,9 +105,51 @@ describe("EmailRow", () => {
         focused={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onTrash={vi.fn()}
       />,
     );
     expect(screen.getByRole("option")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("archives without triggering row selection", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onArchive = vi.fn();
+    render(
+      <EmailRow
+        thread={makeThread()}
+        selected={false}
+        focused={false}
+        onSelect={onSelect}
+        onToggleStar={vi.fn()}
+        onArchive={onArchive}
+        onTrash={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Archive" }));
+    expect(onArchive).toHaveBeenCalledWith("thread-1");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("deletes without triggering row selection", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onTrash = vi.fn();
+    render(
+      <EmailRow
+        thread={makeThread()}
+        selected={false}
+        focused={false}
+        onSelect={onSelect}
+        onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onTrash={onTrash}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(onTrash).toHaveBeenCalledWith("thread-1");
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("falls back to the email local-part when the sender has no name", () => {
@@ -112,6 +162,8 @@ describe("EmailRow", () => {
         focused={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onTrash={vi.fn()}
       />,
     );
     expect(screen.getByText("unknown")).toBeInTheDocument();

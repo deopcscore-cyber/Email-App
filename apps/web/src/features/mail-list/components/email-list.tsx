@@ -104,6 +104,12 @@ export function EmailList({
   const onToggleStar = (id: string, isStarred: boolean): void => {
     triage.mutate({ id, patch: { isStarred } });
   };
+  const onArchive = (id: string): void => {
+    triage.mutate({ id, patch: { folder: "ARCHIVE" } });
+  };
+  const onTrash = (id: string): void => {
+    triage.mutate({ id, patch: { folder: "TRASH" } });
+  };
 
   return (
     <section
@@ -201,6 +207,8 @@ export function EmailList({
                       select(id);
                     }}
                     onToggleStar={onToggleStar}
+                    onArchive={onArchive}
+                    onTrash={onTrash}
                   />
                 </motion.div>
               ))}
