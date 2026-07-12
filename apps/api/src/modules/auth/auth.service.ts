@@ -151,6 +151,16 @@ export class AuthService {
       Math.max(identity.accessTokenExpiresIn - 60, 60),
     );
 
+    // Backfill the account's own avatar from the first connected mailbox
+    // that has one -- username/password sign-up has no photo of its own,
+    // and this is the only place we ever see a real profile picture.
+    if (identity.avatarUrl !== null) {
+      await this.prisma.user.updateMany({
+        where: { id: userId, avatarUrl: null },
+        data: { avatarUrl: identity.avatarUrl },
+      });
+    }
+
     await this.queues.enqueue("sync", {
       kind: "backfill",
       accountId: account.id,

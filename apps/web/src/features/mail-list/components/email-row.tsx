@@ -4,12 +4,8 @@ import { memo } from "react";
 import { motion } from "framer-motion";
 import { Archive, Paperclip, Pin, Star, Trash2 } from "lucide-react";
 import type { ThreadListItemDto } from "@novamail/shared";
-import {
-  avatarHue,
-  displayName,
-  formatListTime,
-  initials,
-} from "@/lib/format";
+import { Avatar } from "@/components/avatar";
+import { displayName, formatListTime } from "@/lib/format";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { SwipeableRow } from "./swipeable-row";
@@ -35,7 +31,6 @@ export const EmailRow = memo(function EmailRow({
 }: EmailRowProps) {
   const from = thread.participants[0] ?? { name: null, email: "unknown" };
   const unread = thread.unreadCount > 0;
-  const hue = avatarHue(from.email);
   const isMobile = useMediaQuery("(max-width: 767px)");
 
   return (
@@ -71,15 +66,7 @@ export const EmailRow = memo(function EmailRow({
           )}
         />
 
-        <span
-          aria-hidden
-          className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{
-            background: `linear-gradient(135deg, hsl(${hue} 55% 55%), hsl(${(hue + 40) % 360} 55% 45%))`,
-          }}
-        >
-          {initials(from)}
-        </span>
+        <Avatar email={from.email} name={from.name} size={36} className="mt-0.5" />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">

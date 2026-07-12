@@ -10,13 +10,8 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import type { Address, AttachmentDto, MessageDto } from "@novamail/shared";
-import {
-  avatarHue,
-  displayName,
-  formatBytes,
-  formatFullTime,
-  initials,
-} from "@/lib/format";
+import { Avatar } from "@/components/avatar";
+import { displayName, formatBytes, formatFullTime } from "@/lib/format";
 import { useOverlayScope, useShortcut } from "@/features/shortcuts/use-shortcut";
 import { popIn } from "@/lib/motion";
 import { attachmentUrl } from "../lib/attachment-url";
@@ -183,7 +178,6 @@ export function MessageCard({
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const hue = avatarHue(message.from.email);
 
   return (
     <article
@@ -205,15 +199,7 @@ export function MessageCard({
         aria-expanded={expanded}
         className="relative flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left"
       >
-        <span
-          aria-hidden
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{
-            background: `linear-gradient(135deg, hsl(${hue} 55% 55%), hsl(${(hue + 40) % 360} 55% 45%))`,
-          }}
-        >
-          {initials(message.from)}
-        </span>
+        <Avatar email={message.from.email} name={message.from.name} size={36} />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-1.5">
             <span className="truncate text-[13px] font-semibold">

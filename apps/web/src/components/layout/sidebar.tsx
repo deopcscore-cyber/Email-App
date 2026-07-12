@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { MailView } from "@novamail/shared";
+import { Avatar } from "@/components/avatar";
 import { AccountSwitcher } from "@/features/accounts/components/account-switcher";
 import { useSession } from "@/features/auth/use-session";
 import { useCompose } from "@/features/compose/compose-context";
@@ -190,16 +191,12 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       <div className="mt-auto flex items-center gap-2.5 border-t border-white/10 px-2 pt-3">
         {user !== undefined && (
           <>
-            <span
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold"
-              aria-hidden
-            >
-              {user.name
-                .split(" ")
-                .map((p) => p[0])
-                .slice(0, 2)
-                .join("")}
-            </span>
+            <Avatar
+              email={user.email}
+              name={user.name}
+              photoUrl={user.avatarUrl}
+              size={32}
+            />
             {!collapsed && (
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13px] font-medium">
