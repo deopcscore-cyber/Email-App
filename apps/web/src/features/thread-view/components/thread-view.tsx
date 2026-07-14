@@ -74,7 +74,11 @@ export function ThreadView() {
     "e",
     () => {
       if (selectedId !== null) {
-        triage.mutate({ id: selectedId, patch: { folder: "ARCHIVE" } });
+        const rescue = thread?.folder === "SPAM" || thread?.folder === "ARCHIVE";
+        triage.mutate({
+          id: selectedId,
+          patch: { folder: rescue ? "INBOX" : "ARCHIVE" },
+        });
         close();
       }
     },
@@ -155,7 +159,7 @@ export function ThreadView() {
           <ArrowLeft className="size-4" aria-hidden />
         </ToolbarButton>
         <div className="mx-1 h-4 w-px bg-border" aria-hidden />
-        {thread?.folder === "SPAM" ? (
+        {thread?.folder === "SPAM" || thread?.folder === "ARCHIVE" ? (
           <ToolbarButton
             label="Move to Inbox"
             onClick={() => {

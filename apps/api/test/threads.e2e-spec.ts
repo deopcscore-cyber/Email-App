@@ -80,6 +80,21 @@ describe("Threads (e2e)", () => {
     ]);
   });
 
+  it("lists archived threads under the archive view", async () => {
+    const { cookieHeader, accountId } = await seedSignedInUser(app);
+    await seedThread(app, accountId, { subject: "In Inbox", folder: "INBOX" });
+    await seedThread(app, accountId, { subject: "Archived", folder: "ARCHIVE" });
+
+    const res = await request(app.getHttpServer())
+      .get("/api/v1/threads?view=archive")
+      .set("Cookie", cookieHeader);
+
+    expect(res.status).toBe(200);
+    expect(res.body.items.map((t: { subject: string }) => t.subject)).toEqual([
+      "Archived",
+    ]);
+  });
+
   it("404s a thread not owned by the caller", async () => {
     const { cookieHeader } = await seedSignedInUser(app);
     const other = await seedSignedInUser(app, { email: "owner2@novamail.dev" });

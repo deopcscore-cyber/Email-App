@@ -38,15 +38,17 @@ export const EmailRow = memo(function EmailRow({
   const from = thread.participants[0] ?? { name: null, email: "unknown" };
   const unread = thread.unreadCount > 0;
   const isMobile = useMediaQuery("(max-width: 767px)");
-  const isSpam = thread.folder === "SPAM";
+  // Re-archiving an already-archived (or spam) thread is a no-op that just
+  // confuses the action -- offer the rescue instead in both cases.
+  const showMoveToInbox = thread.folder === "SPAM" || thread.folder === "ARCHIVE";
 
   return (
     <SwipeableRow
       enabled={isMobile}
-      onSwipeRight={() => (isSpam ? onMoveToInbox(thread.id) : onArchive(thread.id))}
+      onSwipeRight={() => (showMoveToInbox ? onMoveToInbox(thread.id) : onArchive(thread.id))}
       onTrash={() => onTrash(thread.id)}
-      rightLabel={isSpam ? "Move to Inbox" : "Archive"}
-      RightIcon={isSpam ? Inbox : Archive}
+      rightLabel={showMoveToInbox ? "Move to Inbox" : "Archive"}
+      RightIcon={showMoveToInbox ? Inbox : Archive}
     >
       <div
         role="option"
@@ -169,11 +171,11 @@ export const EmailRow = memo(function EmailRow({
             with a solid background, hiding it entirely whenever this was
             forced visible; mobile's equivalent is the swipe gesture. */}
         <span className="absolute right-2 top-1.5 flex items-center gap-1 rounded-md border border-border bg-surface p-0.5 opacity-0 shadow-sm transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-          {isSpam ? (
+          {showMoveToInbox ? (
             <motion.button
               type="button"
               aria-label="Move to Inbox"
-              title="Not spam -- move to Inbox"
+              title="Move to Inbox"
               whileTap={{ scale: 0.75 }}
               onClick={(e) => {
                 e.stopPropagation();

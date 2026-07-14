@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   AlertOctagon,
+  Archive,
   Circle,
   Clock,
   FileText,
@@ -49,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { view: "drafts", label: "Drafts", icon: FileText, countKey: "drafts" },
   { view: "spam", label: "Spam", icon: AlertOctagon, countKey: "spam" },
   { view: "trash", label: "Trash", icon: Trash2 },
+  { view: "archive", label: "Archive", icon: Archive },
 ];
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {

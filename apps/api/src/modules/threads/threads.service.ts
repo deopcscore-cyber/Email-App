@@ -93,6 +93,8 @@ export class ThreadsService {
         return { ...scope, folder: "SPAM" };
       case "trash":
         return { ...scope, folder: "TRASH" };
+      case "archive":
+        return { ...scope, folder: "ARCHIVE" };
     }
   }
 

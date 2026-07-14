@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertOctagon,
+  Archive,
   Clock,
   FileText,
   Inbox,
@@ -132,6 +133,7 @@ export function CommandPalette() {
       { id: "drafts", title: "Go to Drafts", hint: "g d", icon: FileText, run: go("/drafts") },
       { id: "spam", title: "Go to Spam", icon: AlertOctagon, run: go("/spam") },
       { id: "trash", title: "Go to Trash", icon: Trash2, run: go("/trash") },
+      { id: "archive", title: "Go to Archive", icon: Archive, run: go("/archive") },
       { id: "theme-dark", title: "Theme: Dark", icon: Moon,
         run: () => { setTheme("dark"); setPaletteOpen(false); } },
       { id: "theme-light", title: "Theme: Light", icon: Sun,

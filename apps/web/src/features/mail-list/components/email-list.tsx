@@ -22,6 +22,7 @@ const VIEW_TITLES: Record<MailView, string> = {
   drafts: "Drafts",
   spam: "Spam",
   trash: "Trash",
+  archive: "Archive",
 };
 
 export function EmailList({
@@ -157,26 +158,27 @@ export function EmailList({
           </button>
           <span className="text-[13px] font-medium">{markedIds.size} selected</span>
           <span className="ml-auto flex items-center gap-1">
-            {view === "spam" && (
+            {view === "spam" || view === "archive" ? (
               <button
                 type="button"
                 aria-label="Move to Inbox"
-                title="Not spam -- move to Inbox"
+                title="Move to Inbox"
                 onClick={onBulkMoveToInbox}
                 className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
               >
                 <Inbox className="size-4" aria-hidden />
               </button>
+            ) : (
+              <button
+                type="button"
+                aria-label="Archive"
+                title="Archive"
+                onClick={onBulkArchive}
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+              >
+                <Archive className="size-4" aria-hidden />
+              </button>
             )}
-            <button
-              type="button"
-              aria-label="Archive"
-              title="Archive"
-              onClick={onBulkArchive}
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-            >
-              <Archive className="size-4" aria-hidden />
-            </button>
             <button
               type="button"
               aria-label="Delete"

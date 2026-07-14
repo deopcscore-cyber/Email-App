@@ -26,6 +26,7 @@ export const mailViewSchema = z.enum([
   "drafts",
   "spam",
   "trash",
+  "archive",
 ]);
 export type MailView = z.infer<typeof mailViewSchema>;
 
