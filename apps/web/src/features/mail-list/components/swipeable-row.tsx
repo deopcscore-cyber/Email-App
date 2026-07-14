@@ -2,12 +2,13 @@
 
 import { useRef } from "react";
 import { motion, useMotionValue, useTransform, type PanInfo } from "framer-motion";
-import { Archive, Trash2 } from "lucide-react";
+import { Archive, type LucideIcon, Trash2 } from "lucide-react";
 
 const SWIPE_THRESHOLD = 84;
 
 /**
- * Gmail-style swipe-to-triage for touch screens: drag right to archive,
+ * Gmail-style swipe-to-triage for touch screens: drag right to archive
+ * (or rescue from Spam, when `rightLabel`/`onSwipeRight` are overridden),
  * left to delete. `enabled` gates dragging (desktop passes false, so
  * this stays fully inert there -- no pointer/mouse drag on a feature meant
  * for touch). The row itself owns click-to-open; a drag that crosses the
@@ -18,23 +19,27 @@ const SWIPE_THRESHOLD = 84;
 export function SwipeableRow({
   children,
   enabled,
-  onArchive,
+  onSwipeRight,
   onTrash,
+  rightLabel = "Archive",
+  RightIcon = Archive,
 }: {
   children: React.ReactNode;
   enabled: boolean;
-  onArchive: () => void;
+  onSwipeRight: () => void;
   onTrash: () => void;
+  rightLabel?: string;
+  RightIcon?: LucideIcon;
 }) {
   const x = useMotionValue(0);
-  const archiveOpacity = useTransform(x, [12, SWIPE_THRESHOLD], [0, 1]);
+  const rightOpacity = useTransform(x, [12, SWIPE_THRESHOLD], [0, 1]);
   const trashOpacity = useTransform(x, [-SWIPE_THRESHOLD, -12], [1, 0]);
   const draggedRef = useRef(false);
 
   function handleDragEnd(_event: unknown, info: PanInfo): void {
     if (info.offset.x > SWIPE_THRESHOLD) {
       draggedRef.current = true;
-      onArchive();
+      onSwipeRight();
     } else if (info.offset.x < -SWIPE_THRESHOLD) {
       draggedRef.current = true;
       onTrash();
@@ -55,11 +60,11 @@ export function SwipeableRow({
     >
       <motion.div
         aria-hidden
-        style={{ opacity: archiveOpacity }}
+        style={{ opacity: rightOpacity }}
         className="absolute inset-0 flex items-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-medium text-white"
       >
-        <Archive className="size-4" aria-hidden />
-        Archive
+        <RightIcon className="size-4" aria-hidden />
+        {rightLabel}
       </motion.div>
       <motion.div
         aria-hidden

@@ -43,8 +43,10 @@ export const EmailRow = memo(function EmailRow({
   return (
     <SwipeableRow
       enabled={isMobile}
-      onArchive={() => onArchive(thread.id)}
+      onSwipeRight={() => (isSpam ? onMoveToInbox(thread.id) : onArchive(thread.id))}
       onTrash={() => onTrash(thread.id)}
+      rightLabel={isSpam ? "Move to Inbox" : "Archive"}
+      RightIcon={isSpam ? Inbox : Archive}
     >
       <div
         role="option"
