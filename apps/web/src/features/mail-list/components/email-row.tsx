@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { motion } from "framer-motion";
-import { Archive, Paperclip, Pin, Star, Trash2 } from "lucide-react";
+import { Archive, Check, Inbox, Paperclip, Pin, Star, Trash2 } from "lucide-react";
 import type { ThreadListItemDto } from "@novamail/shared";
 import { Avatar } from "@/components/avatar";
 import { displayName, formatListTime } from "@/lib/format";
@@ -14,24 +14,31 @@ interface EmailRowProps {
   thread: ThreadListItemDto;
   selected: boolean;
   focused: boolean;
+  marked: boolean;
   onSelect: (id: string) => void;
+  onToggleMark: (id: string) => void;
   onToggleStar: (id: string, starred: boolean) => void;
   onArchive: (id: string) => void;
   onTrash: (id: string) => void;
+  onMoveToInbox: (id: string) => void;
 }
 
 export const EmailRow = memo(function EmailRow({
   thread,
   selected,
   focused,
+  marked,
   onSelect,
+  onToggleMark,
   onToggleStar,
   onArchive,
   onTrash,
+  onMoveToInbox,
 }: EmailRowProps) {
   const from = thread.participants[0] ?? { name: null, email: "unknown" };
   const unread = thread.unreadCount > 0;
   const isMobile = useMediaQuery("(max-width: 767px)");
+  const isSpam = thread.folder === "SPAM";
 
   return (
     <SwipeableRow
@@ -50,11 +57,13 @@ export const EmailRow = memo(function EmailRow({
         }}
         className={cn(
           "group relative flex cursor-pointer gap-3 rounded-xl px-3 py-2.5 transition-colors duration-100",
-          selected
-            ? "bg-accent-soft"
-            : focused
-              ? "bg-surface-muted"
-              : "hover:bg-surface-muted",
+          marked
+            ? "bg-accent/10"
+            : selected
+              ? "bg-accent-soft"
+              : focused
+                ? "bg-surface-muted"
+                : "hover:bg-surface-muted",
         )}
       >
         {/* Focus rail for keyboard navigation */}
@@ -66,7 +75,24 @@ export const EmailRow = memo(function EmailRow({
           )}
         />
 
-        <Avatar email={from.email} name={from.name} size={36} className="mt-0.5" />
+        <button
+          type="button"
+          aria-label={marked ? "Deselect email" : "Select email"}
+          aria-pressed={marked}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMark(thread.id);
+          }}
+          className="mt-0.5 shrink-0 rounded-full"
+        >
+          {marked ? (
+            <span className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
+              <Check className="size-4" aria-hidden />
+            </span>
+          ) : (
+            <Avatar email={from.email} name={from.name} size={36} />
+          )}
+        </button>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
@@ -141,19 +167,35 @@ export const EmailRow = memo(function EmailRow({
             with a solid background, hiding it entirely whenever this was
             forced visible; mobile's equivalent is the swipe gesture. */}
         <span className="absolute right-2 top-1.5 flex items-center gap-1 rounded-md border border-border bg-surface p-0.5 opacity-0 shadow-sm transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-          <motion.button
-            type="button"
-            aria-label="Archive"
-            title="Archive"
-            whileTap={{ scale: 0.75 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onArchive(thread.id);
-            }}
-            className="rounded p-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
-          >
-            <Archive className="size-3.5" aria-hidden />
-          </motion.button>
+          {isSpam ? (
+            <motion.button
+              type="button"
+              aria-label="Move to Inbox"
+              title="Not spam -- move to Inbox"
+              whileTap={{ scale: 0.75 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToInbox(thread.id);
+              }}
+              className="rounded p-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+            >
+              <Inbox className="size-3.5" aria-hidden />
+            </motion.button>
+          ) : (
+            <motion.button
+              type="button"
+              aria-label="Archive"
+              title="Archive"
+              whileTap={{ scale: 0.75 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onArchive(thread.id);
+              }}
+              className="rounded p-1 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+            >
+              <Archive className="size-3.5" aria-hidden />
+            </motion.button>
+          )}
           <motion.button
             type="button"
             aria-label="Delete"

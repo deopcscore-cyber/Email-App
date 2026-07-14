@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search } from "lucide-react";
+import { Archive, Inbox, Mail, MailOpen, Search, Trash2, X } from "lucide-react";
 import { fadeUp, rowExit, staggerChildren } from "@/lib/motion";
 import type { MailView } from "@novamail/shared";
 import { useUi } from "@/contexts/ui-context";
@@ -49,6 +49,24 @@ export function EmailList({
   useEffect(() => {
     setFocusIndex((i) => Math.min(i, Math.max(0, threads.length - 1)));
   }, [threads.length]);
+
+  // Gmail-style multi-select: click an avatar to mark a row, revealing a
+  // bulk-action toolbar in place of the search bar. Cleared whenever the
+  // underlying list changes so marks never carry over to a different view.
+  const [markedIds, setMarkedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    setMarkedIds(new Set());
+  }, [view, labelId, accountId]);
+
+  const toggleMark = (id: string): void => {
+    setMarkedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearMarks = (): void => setMarkedIds(new Set());
 
   const focusRow = (index: number): void => {
     setFocusIndex(index);
@@ -107,30 +125,109 @@ export function EmailList({
   const onTrash = (id: string): void => {
     triage.mutate({ id, patch: { folder: "TRASH" } });
   };
+  const onMoveToInbox = (id: string): void => {
+    triage.mutate({ id, patch: { folder: "INBOX" } });
+  };
+
+  const bulkApply = (patch: Parameters<typeof triage.mutate>[0]["patch"]): void => {
+    for (const id of markedIds) triage.mutate({ id, patch });
+    clearMarks();
+  };
+  const onBulkArchive = (): void => bulkApply({ folder: "ARCHIVE" });
+  const onBulkTrash = (): void => bulkApply({ folder: "TRASH" });
+  const onBulkMoveToInbox = (): void => bulkApply({ folder: "INBOX" });
+  const onBulkMarkRead = (isRead: boolean): void => bulkApply({ isRead });
 
   return (
     <section
       aria-label={VIEW_TITLES[view]}
       className="flex h-full w-[380px] shrink-0 flex-col border-r border-border max-lg:w-[320px] max-md:w-full max-md:border-r-0"
     >
-      {/* Search trigger */}
-      <div className="px-3 pt-3">
-        <button
-          type="button"
-          onClick={() => setPaletteOpen(true)}
-          className="flex h-9 w-full items-center gap-2.5 rounded-lg border border-border bg-surface-muted px-3 text-[13px] text-muted-foreground transition-colors hover:border-accent/40"
-        >
-          <Search className="size-3.5" aria-hidden />
-          Search anything…
-          <kbd className="ml-auto rounded border border-border bg-surface px-1.5 font-sans text-[10px] leading-4">
-            ⌘K
-          </kbd>
-        </button>
-      </div>
+      {markedIds.size > 0 ? (
+        /* Bulk-action toolbar -- replaces search + title while marking. */
+        <div className="mx-3 mt-3 flex items-center gap-1 rounded-lg border border-border bg-surface-muted px-2 py-2">
+          <button
+            type="button"
+            aria-label="Clear selection"
+            title="Clear selection"
+            onClick={clearMarks}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+          <span className="text-[13px] font-medium">{markedIds.size} selected</span>
+          <span className="ml-auto flex items-center gap-1">
+            {view === "spam" && (
+              <button
+                type="button"
+                aria-label="Move to Inbox"
+                title="Not spam -- move to Inbox"
+                onClick={onBulkMoveToInbox}
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+              >
+                <Inbox className="size-4" aria-hidden />
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label="Archive"
+              title="Archive"
+              onClick={onBulkArchive}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            >
+              <Archive className="size-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Delete"
+              title="Delete"
+              onClick={onBulkTrash}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Mark as read"
+              title="Mark as read"
+              onClick={() => onBulkMarkRead(true)}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            >
+              <MailOpen className="size-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Mark as unread"
+              title="Mark as unread"
+              onClick={() => onBulkMarkRead(false)}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            >
+              <Mail className="size-4" aria-hidden />
+            </button>
+          </span>
+        </div>
+      ) : (
+        <>
+          {/* Search trigger */}
+          <div className="px-3 pt-3">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              className="flex h-9 w-full items-center gap-2.5 rounded-lg border border-border bg-surface-muted px-3 text-[13px] text-muted-foreground transition-colors hover:border-accent/40"
+            >
+              <Search className="size-3.5" aria-hidden />
+              Search anything…
+              <kbd className="ml-auto rounded border border-border bg-surface px-1.5 font-sans text-[10px] leading-4">
+                ⌘K
+              </kbd>
+            </button>
+          </div>
 
-      <h1 className="mx-3 mt-3 border-b border-border px-1 pb-2 text-[13px] font-semibold">
-        {VIEW_TITLES[view]}
-      </h1>
+          <h1 className="mx-3 mt-3 border-b border-border px-1 pb-2 text-[13px] font-semibold">
+            {VIEW_TITLES[view]}
+          </h1>
+        </>
+      )}
 
       {/* Rows */}
       <div
@@ -167,13 +264,16 @@ export function EmailList({
                     thread={thread}
                     selected={thread.id === selectedId}
                     focused={i === focusIndex}
+                    marked={markedIds.has(thread.id)}
                     onSelect={(id) => {
                       setFocusIndex(i);
                       select(id);
                     }}
+                    onToggleMark={toggleMark}
                     onToggleStar={onToggleStar}
                     onArchive={onArchive}
                     onTrash={onTrash}
+                    onMoveToInbox={onMoveToInbox}
                   />
                 </motion.div>
               ))}

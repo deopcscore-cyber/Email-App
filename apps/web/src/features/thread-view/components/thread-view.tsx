@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Clock,
   Forward,
+  Inbox,
   MailOpen,
   Reply,
   ReplyAll,
@@ -154,15 +155,27 @@ export function ThreadView() {
           <ArrowLeft className="size-4" aria-hidden />
         </ToolbarButton>
         <div className="mx-1 h-4 w-px bg-border" aria-hidden />
-        <ToolbarButton
-          label="Archive (e)"
-          onClick={() => {
-            triage.mutate({ id: selectedId, patch: { folder: "ARCHIVE" } });
-            close();
-          }}
-        >
-          <Archive className="size-4" aria-hidden />
-        </ToolbarButton>
+        {thread?.folder === "SPAM" ? (
+          <ToolbarButton
+            label="Move to Inbox"
+            onClick={() => {
+              triage.mutate({ id: selectedId, patch: { folder: "INBOX" } });
+              close();
+            }}
+          >
+            <Inbox className="size-4" aria-hidden />
+          </ToolbarButton>
+        ) : (
+          <ToolbarButton
+            label="Archive (e)"
+            onClick={() => {
+              triage.mutate({ id: selectedId, patch: { folder: "ARCHIVE" } });
+              close();
+            }}
+          >
+            <Archive className="size-4" aria-hidden />
+          </ToolbarButton>
+        )}
         <ToolbarButton
           label="Delete (#)"
           onClick={() => {

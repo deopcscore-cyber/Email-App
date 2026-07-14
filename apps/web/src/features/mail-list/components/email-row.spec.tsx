@@ -34,10 +34,13 @@ describe("EmailRow", () => {
         thread={makeThread()}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     expect(screen.getByText("Sarah Chen")).toBeInTheDocument();
@@ -51,10 +54,13 @@ describe("EmailRow", () => {
         thread={makeThread({ messageCount: 4 })}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     expect(screen.getByText("4")).toBeInTheDocument();
@@ -66,10 +72,13 @@ describe("EmailRow", () => {
         thread={makeThread({ messageCount: 1 })}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     expect(screen.queryByText("1")).not.toBeInTheDocument();
@@ -83,10 +92,13 @@ describe("EmailRow", () => {
         thread={makeThread()}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={onSelect}
         onToggleStar={vi.fn()}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     await user.click(screen.getByText("Q2 Campaign Strategy"));
@@ -102,10 +114,13 @@ describe("EmailRow", () => {
         thread={makeThread({ isStarred: false })}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={onSelect}
         onToggleStar={onToggleStar}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Star" }));
@@ -119,10 +134,13 @@ describe("EmailRow", () => {
         thread={makeThread({ isStarred: true })}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     expect(screen.getByRole("button", { name: "Unstar" })).toBeInTheDocument();
@@ -134,10 +152,13 @@ describe("EmailRow", () => {
         thread={makeThread()}
         selected
         focused={false}
+        marked={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     expect(screen.getByRole("option")).toHaveAttribute("aria-selected", "true");
@@ -152,10 +173,13 @@ describe("EmailRow", () => {
         thread={makeThread()}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={onSelect}
         onToggleStar={vi.fn()}
         onArchive={onArchive}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Archive" }));
@@ -172,15 +196,81 @@ describe("EmailRow", () => {
         thread={makeThread()}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={onSelect}
         onToggleStar={vi.fn()}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={onTrash}
+        onMoveToInbox={vi.fn()}
       />,
     );
     await user.click(screen.getByRole("button", { name: "Delete" }));
     expect(onTrash).toHaveBeenCalledWith("thread-1");
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("marks a row without triggering row selection or opening the thread", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onToggleMark = vi.fn();
+    render(
+      <EmailRow
+        thread={makeThread()}
+        selected={false}
+        focused={false}
+        marked={false}
+        onSelect={onSelect}
+        onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onToggleMark={onToggleMark}
+        onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Select email" }));
+    expect(onToggleMark).toHaveBeenCalledWith("thread-1");
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("shows a checkmark instead of the avatar once marked", () => {
+    render(
+      <EmailRow
+        thread={makeThread()}
+        selected={false}
+        focused={false}
+        marked
+        onSelect={vi.fn()}
+        onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
+        onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Deselect email" })).toBeInTheDocument();
+  });
+
+  it("offers 'Move to Inbox' instead of Archive for spam threads", async () => {
+    const user = userEvent.setup();
+    const onMoveToInbox = vi.fn();
+    render(
+      <EmailRow
+        thread={makeThread({ folder: "SPAM" })}
+        selected={false}
+        focused={false}
+        marked={false}
+        onSelect={vi.fn()}
+        onToggleStar={vi.fn()}
+        onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
+        onTrash={vi.fn()}
+        onMoveToInbox={onMoveToInbox}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Move to Inbox" }));
+    expect(onMoveToInbox).toHaveBeenCalledWith("thread-1");
   });
 
   it("falls back to the email local-part when the sender has no name", () => {
@@ -191,10 +281,13 @@ describe("EmailRow", () => {
         })}
         selected={false}
         focused={false}
+        marked={false}
         onSelect={vi.fn()}
         onToggleStar={vi.fn()}
         onArchive={vi.fn()}
+        onToggleMark={vi.fn()}
         onTrash={vi.fn()}
+        onMoveToInbox={vi.fn()}
       />,
     );
     expect(screen.getByText("unknown")).toBeInTheDocument();
