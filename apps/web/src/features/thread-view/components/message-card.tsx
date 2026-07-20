@@ -15,6 +15,7 @@ import { displayName, formatBytes, formatFullTime } from "@/lib/format";
 import { useOverlayScope, useShortcut } from "@/features/shortcuts/use-shortcut";
 import { popIn } from "@/lib/motion";
 import { attachmentUrl } from "../lib/attachment-url";
+import { referencedContentIds } from "../lib/inline-attachments";
 import { transitions } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { MessageBody } from "./message-body";
@@ -271,7 +272,15 @@ export function MessageCard({
               {(() => {
                 // Inline images (signatures, logos) already render inside
                 // the body above -- listing them again as chips is noise.
-                const downloadable = message.attachments.filter((a) => !a.isInline);
+                // But some senders tag a real file attachment with a
+                // Content-ID even though the body never actually embeds it
+                // via cid: -- trusting isInline alone made those vanish
+                // entirely (no chip, no inline render). Only skip the chip
+                // when the body actually resolved this one inline.
+                const referenced = referencedContentIds(message.bodyHtml ?? "");
+                const downloadable = message.attachments.filter(
+                  (a) => !a.isInline || a.contentId === null || !referenced.has(a.contentId),
+                );
                 return (
                   downloadable.length > 0 && (
                     <div className="mt-4 border-t border-border pt-3">

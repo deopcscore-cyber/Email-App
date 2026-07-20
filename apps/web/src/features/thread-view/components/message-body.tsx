@@ -3,13 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AttachmentDto } from "@novamail/shared";
 import { attachmentUrl } from "../lib/attachment-url";
+import { CID_REFERENCE_PATTERN } from "../lib/inline-attachments";
 
 let linkHookInstalled = false;
 
 /** Gmail/Graph both leave inline images as `cid:` references pointing at
  * the message's own attachment parts -- not a resolvable URL in a browser,
  * so left alone they render as broken images. Swap each for the matching
- * attachment's inline download URL before sanitizing. */
+ * attachment's inline download URL before sanitizing. Shares its matcher
+ * with inline-attachments.ts's referencedContentIds so an attachment
+ * marked isInline that this doesn't actually resolve here (e.g. a
+ * Content-ID the sender attached to a file that isn't really embedded)
+ * still surfaces as a downloadable chip instead of silently vanishing. */
 function resolveCidReferences(html: string, attachments: AttachmentDto[]): string {
   const byContentId = new Map(
     attachments
@@ -18,12 +23,10 @@ function resolveCidReferences(html: string, attachments: AttachmentDto[]): strin
   );
   if (byContentId.size === 0) return html;
   return html.replace(
-    /\b(src|background)(\s*=\s*)(["'])cid:([^"'>]+)\3/gi,
-    (match: string, attr: string, eq: string, quote: string, cid: string) => {
+    CID_REFERENCE_PATTERN,
+    (match: string, _quote: string, cid: string) => {
       const id = byContentId.get(cid);
-      return id === undefined
-        ? match
-        : `${attr}${eq}${quote}${attachmentUrl(id, "inline")}${quote}`;
+      return id === undefined ? match : match.replace(`cid:${cid}`, attachmentUrl(id, "inline"));
     },
   );
 }
