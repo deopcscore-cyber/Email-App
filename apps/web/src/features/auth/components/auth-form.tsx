@@ -1,12 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { loginSchema, registerSchema } from "@novamail/shared";
 import { ApiClientError } from "@/lib/api-client";
+import { recoverAccountUrl } from "../api";
+import { GoogleLogo, MicrosoftLogo } from "./provider-logos";
 import { useLogin, useRegister } from "../use-session";
 
 type Mode = "signin" | "signup";
+
+const RECOVER_ERROR_MESSAGES: Record<string, string> = {
+  no_account_found: "No NovaMail account has that connected. Try the other provider, or create an account.",
+  cancelled: "Recovery was cancelled. Try again whenever you're ready.",
+  provider: "The provider returned an error. Please try again.",
+  missing_params: "The response was incomplete. Please try again.",
+};
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-white " +
@@ -19,7 +29,9 @@ const submitClass =
   "transition-opacity duration-150 hover:opacity-90 disabled:opacity-50";
 
 export function AuthForm() {
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
+  const [showRecover, setShowRecover] = useState(false);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -29,6 +41,12 @@ export function AuthForm() {
   const login = useLogin();
   const register = useRegister();
   const pending = login.isPending || register.isPending;
+
+  const recoverError = searchParams.get("error");
+  const recoverErrorMessage =
+    recoverError === null
+      ? null
+      : (RECOVER_ERROR_MESSAGES[recoverError] ?? "Something went wrong. Please try again.");
 
   const serverError = login.error ?? register.error;
   const errorMessage =
@@ -41,6 +59,7 @@ export function AuthForm() {
 
   function switchMode(next: Mode): void {
     setMode(next);
+    setShowRecover(false);
     setFieldError(null);
     login.reset();
     register.reset();
@@ -90,63 +109,116 @@ export function AuthForm() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {mode === "signup" && (
-          <>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Full name"
-              autoComplete="name"
-              className={inputClass}
-            />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              autoComplete="email"
-              className={inputClass}
-            />
-          </>
-        )}
-        <input
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Username"
-          autoComplete="username"
-          className={inputClass}
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          autoComplete={mode === "signin" ? "current-password" : "new-password"}
-          className={inputClass}
-        />
+      {mode === "signin" && showRecover ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-left text-[13px] text-white/55">
+            Sign back in with a Google or Microsoft account already
+            connected to your NovaMail account, then set a new password.
+          </p>
 
-        {errorMessage !== null && (
-          <motion.p
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            role="alert"
-            className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2.5 text-sm text-red-300"
+          {recoverErrorMessage !== null && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              role="alert"
+              className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2.5 text-sm text-red-300"
+            >
+              {recoverErrorMessage}
+            </motion.p>
+          )}
+
+          <a
+            href={recoverAccountUrl("google")}
+            className="flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-white/[0.09]"
           >
-            {errorMessage}
-          </motion.p>
-        )}
+            <GoogleLogo />
+            Continue with Google
+          </a>
+          <a
+            href={recoverAccountUrl("microsoft")}
+            className="flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-5 py-3 text-sm font-medium text-white transition-colors duration-150 hover:bg-white/[0.09]"
+          >
+            <MicrosoftLogo />
+            Continue with Microsoft
+          </a>
 
-        <motion.button
-          type="submit"
-          disabled={pending}
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          className={submitClass}
-        >
-          {pending ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
-        </motion.button>
-      </form>
+          <button
+            type="button"
+            onClick={() => setShowRecover(false)}
+            className="mt-1 text-xs text-white/45 underline-offset-2 hover:text-white/70 hover:underline"
+          >
+            Back to sign in
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {mode === "signup" && (
+            <>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Full name"
+                autoComplete="name"
+                className={inputClass}
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                autoComplete="email"
+                className={inputClass}
+              />
+            </>
+          )}
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username"
+            autoComplete="username"
+            className={inputClass}
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            className={inputClass}
+          />
+
+          {mode === "signin" && (
+            <button
+              type="button"
+              onClick={() => setShowRecover(true)}
+              className="self-end text-xs text-white/45 underline-offset-2 hover:text-white/70 hover:underline"
+            >
+              Forgot password?
+            </button>
+          )}
+
+          {errorMessage !== null && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              role="alert"
+              className="rounded-lg border border-red-400/20 bg-red-400/10 px-4 py-2.5 text-sm text-red-300"
+            >
+              {errorMessage}
+            </motion.p>
+          )}
+
+          <motion.button
+            type="submit"
+            disabled={pending}
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.98 }}
+            className={submitClass}
+          >
+            {pending ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+          </motion.button>
+        </form>
+      )}
     </div>
   );
 }

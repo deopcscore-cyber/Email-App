@@ -95,6 +95,29 @@ export class AuthService {
     return user.id;
   }
 
+  /** Account recovery: which NovaMail user (if any) already has this exact
+   * provider identity connected as a mailbox. Re-authenticating with that
+   * provider is treated as proof of ownership -- there is no email-based
+   * "reset link" flow, since this app never sends mail as itself. */
+  async findUserIdByProviderAccount(
+    provider: OAuthIdentity["provider"],
+    providerAccountId: string,
+  ): Promise<string | null> {
+    const account = await this.prisma.emailAccount.findUnique({
+      where: { provider_providerAccountId: { provider, providerAccountId } },
+      select: { userId: true },
+    });
+    return account?.userId ?? null;
+  }
+
+  /** Sets a new password, no proof beyond the caller already being
+   * authenticated -- used both for a normal "change password" and as the
+   * final step of recovery (identity was already proven via OAuth). */
+  async setPassword(userId: string, newPassword: string): Promise<void> {
+    const passwordHash = await hash(newPassword, BCRYPT_ROUNDS);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  }
+
   /** Attaches a connected mailbox to the given (already signed-in) user. */
   async handleIdentity(
     identity: OAuthIdentity,

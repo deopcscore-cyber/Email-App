@@ -92,10 +92,12 @@ export class OAuthService {
     return `${this.env.APP_ORIGIN}${API_PREFIX}/auth/${provider.toLowerCase()}/callback`;
   }
 
-  /** Builds the provider redirect and persists state+verifier in Redis. */
+  /** Builds the provider redirect and persists state+verifier in Redis.
+   * `linkToUserId` omitted means account recovery, not connecting a
+   * mailbox to an already-signed-in user -- see OAuthState. */
   async beginAuthorization(
     provider: Provider,
-    linkToUserId: string,
+    linkToUserId?: string,
   ): Promise<string> {
     if (!this.isConfigured(provider)) {
       throw new BadRequestException(
@@ -132,12 +134,23 @@ export class OAuthService {
     return url.toString();
   }
 
+  /** Peeks (without consuming) whether a still-pending state belongs to a
+   * recovery attempt, so a failed/cancelled callback can redirect to
+   * /login instead of the connect-mailbox settings page before we know
+   * whether the caller is signed in at all. */
+  async isRecoveryState(state: string): Promise<boolean> {
+    const raw = await this.redis.client.get(`oauth:state:${state}`);
+    if (raw === null) return false;
+    const stored = JSON.parse(raw) as OAuthState;
+    return stored.linkToUserId === undefined;
+  }
+
   /** Validates state, exchanges the code, and normalizes the identity. */
   async completeAuthorization(
     provider: Provider,
     code: string,
     state: string,
-  ): Promise<{ identity: OAuthIdentity; linkToUserId: string }> {
+  ): Promise<{ identity: OAuthIdentity; linkToUserId?: string }> {
     const key = `oauth:state:${state}`;
     const raw = await this.redis.client.getdel(key); // single-use state
     if (raw === null) {

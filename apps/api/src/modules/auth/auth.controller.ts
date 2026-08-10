@@ -5,6 +5,7 @@ import {
   Logger,
   Param,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -12,8 +13,19 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
-import type { LoginDto, Provider, RegisterDto, SessionUserDto } from "@novamail/shared";
-import { SESSION_COOKIE, loginSchema, registerSchema } from "@novamail/shared";
+import type {
+  ChangePasswordDto,
+  LoginDto,
+  Provider,
+  RegisterDto,
+  SessionUserDto,
+} from "@novamail/shared";
+import {
+  SESSION_COOKIE,
+  changePasswordSchema,
+  loginSchema,
+  registerSchema,
+} from "@novamail/shared";
 import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe";
 import {
   CurrentUser,
@@ -89,6 +101,19 @@ export class AuthController {
     res.status(200).json(sessionUser);
   }
 
+  /** PUT /auth/password — set a new password. Also the final step of
+   * account recovery: identity there was already proven via OAuth. */
+  @Put("password")
+  @UseGuards(SessionGuard)
+  async changePassword(
+    @Body(new ZodValidationPipe(changePasswordSchema)) dto: ChangePasswordDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.auth.setPassword(user.id, dto.password);
+    res.status(204).send();
+  }
+
   /** POST /auth/logout — destroy the current session. */
   @Post("logout")
   @UseGuards(SessionGuard)
@@ -103,8 +128,10 @@ export class AuthController {
   }
 
   /**
-   * GET /auth/:provider — begin connecting a mailbox. Google/Microsoft are
-   * connect-only now: this always requires an existing NovaMail session.
+   * GET /auth/:provider — begin connecting a mailbox (default) or account
+   * recovery (?intent=recover). Connecting always requires an existing
+   * NovaMail session; recovery is the one OAuth entry point usable while
+   * signed out, since there's no separate password-reset-by-email flow.
    */
   @Get(":provider")
   async begin(
@@ -114,6 +141,12 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<void> {
     const provider = parseProvider(providerParam);
+
+    if (intent === "recover") {
+      const url = await this.oauth.beginAuthorization(provider);
+      res.redirect(url);
+      return;
+    }
 
     const token = (req.cookies as Record<string, string | undefined>)[
       SESSION_COOKIE
@@ -138,9 +171,13 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<void> {
     const appOrigin = process.env.APP_ORIGIN ?? "http://localhost:3000";
-    const fail = (reason: string): void => {
+    const fail = async (reason: string): Promise<void> => {
       this.logger.warn(`OAuth callback failed: ${reason}`);
-      res.redirect(`${appOrigin}/settings/accounts?error=${encodeURIComponent(reason)}`);
+      // Recovery runs signed-out, so a failure there belongs on /login, not
+      // the (auth-gated) connect-mailbox settings page.
+      const recovering = state !== undefined && (await this.oauth.isRecoveryState(state));
+      const dest = recovering ? `${appOrigin}/login` : `${appOrigin}/settings/accounts`;
+      res.redirect(`${dest}?error=${encodeURIComponent(reason)}`);
     };
 
     if (providerError !== undefined) {
@@ -154,8 +191,26 @@ export class AuthController {
       const provider = parseProvider(providerParam);
       const { identity, linkToUserId } =
         await this.oauth.completeAuthorization(provider, code, state);
-      await this.auth.handleIdentity(identity, linkToUserId);
-      res.redirect(`${appOrigin}/settings/accounts`);
+
+      if (linkToUserId !== undefined) {
+        await this.auth.handleIdentity(identity, linkToUserId);
+        res.redirect(`${appOrigin}/settings/accounts`);
+        return;
+      }
+
+      // Recovery: no session started this flow, so successfully completing
+      // the provider handshake is itself the proof of identity. Sign in as
+      // whichever NovaMail user already has this exact account connected.
+      const recoveredUserId = await this.auth.findUserIdByProviderAccount(
+        identity.provider,
+        identity.providerAccountId,
+      );
+      if (recoveredUserId === null) {
+        res.redirect(`${appOrigin}/login?error=no_account_found`);
+        return;
+      }
+      await this.sessions.create(recoveredUserId, req.header("user-agent"), res);
+      res.redirect(`${appOrigin}/settings/accounts?recovered=1`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown";
       return fail(message);

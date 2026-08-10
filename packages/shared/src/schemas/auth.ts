@@ -82,6 +82,11 @@ export const loginSchema = z.object({
 });
 export type LoginDto = z.infer<typeof loginSchema>;
 
+export const changePasswordSchema = z.object({
+  password: passwordSchema,
+});
+export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
+
 /** Uniform API error envelope. */
 export const apiErrorSchema = z.object({
   error: z.object({

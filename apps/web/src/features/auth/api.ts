@@ -1,4 +1,5 @@
 import type {
+  ChangePasswordDto,
   LoginDto,
   RegisterDto,
   SessionUserDto,
@@ -35,4 +36,16 @@ export function removeAccount(accountId: string): Promise<void> {
  * require an existing NovaMail session and hand off to the provider. */
 export function linkAccountUrl(provider: "google" | "microsoft"): string {
   return `/api/v1/auth/${provider}`;
+}
+
+/** Account recovery: same provider handshake as connecting a mailbox, but
+ * usable while signed out -- the callback signs the caller in if this
+ * identity is already attached to a NovaMail account. There's no separate
+ * "reset link" flow since the app never sends mail as itself. */
+export function recoverAccountUrl(provider: "google" | "microsoft"): string {
+  return `/api/v1/auth/${provider}?intent=recover`;
+}
+
+export function changePassword(body: ChangePasswordDto): Promise<void> {
+  return api<void>("/auth/password", { method: "PUT", body });
 }

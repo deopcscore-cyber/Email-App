@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { motion, type Variants } from "framer-motion";
 import { Mail, Sparkles, Zap, Inbox, Search, ShieldCheck } from "lucide-react";
 import { AuthForm } from "@/features/auth/components/auth-form";
@@ -56,7 +57,9 @@ export function LoginScreen() {
         </motion.p>
 
         <motion.div variants={item} className="mt-10 w-full">
-          <AuthForm />
+          <Suspense fallback={null}>
+            <AuthForm />
+          </Suspense>
         </motion.div>
 
         <motion.ul

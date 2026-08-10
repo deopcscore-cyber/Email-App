@@ -1,5 +1,7 @@
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
+import { PrismaService } from "../src/prisma/prisma.service";
+import { AuthService } from "../src/modules/auth/auth.service";
 import { CSRF_TEST_HEADERS, createTestApp, resetDatabase, seedSignedInUser } from "./test-app";
 
 describe("Auth + CSRF (e2e)", () => {
@@ -210,5 +212,88 @@ describe("Auth + CSRF (e2e)", () => {
       .set("Cookie", cookieHeader)
       .set(CSRF_TEST_HEADERS);
     expect(res.status).toBe(404);
+  });
+
+  it("changes the password, then rejects the old one and accepts the new one", async () => {
+    await request(app.getHttpServer()).post("/api/v1/auth/register").send({
+      username: "pwchangeuser",
+      email: "pwchange@novamail.dev",
+      name: "PW Change",
+      password: "correct-horse-battery",
+    });
+    const login = await request(app.getHttpServer()).post("/api/v1/auth/login").send({
+      username: "pwchangeuser",
+      password: "correct-horse-battery",
+    });
+    const setCookies = login.headers["set-cookie"] as unknown as string[];
+    const cookieHeader = setCookies.map((c) => c.split(";")[0]).join("; ");
+    const csrfToken = setCookies
+      .find((c) => c.startsWith("novamail_csrf="))
+      ?.split(";")[0]
+      .split("=")[1];
+
+    const change = await request(app.getHttpServer())
+      .put("/api/v1/auth/password")
+      .set("Cookie", cookieHeader)
+      .set("x-csrf-token", csrfToken as string)
+      .send({ password: "new-correct-horse-battery" });
+    expect(change.status).toBe(204);
+
+    const oldLogin = await request(app.getHttpServer()).post("/api/v1/auth/login").send({
+      username: "pwchangeuser",
+      password: "correct-horse-battery",
+    });
+    expect(oldLogin.status).toBe(401);
+
+    const newLogin = await request(app.getHttpServer()).post("/api/v1/auth/login").send({
+      username: "pwchangeuser",
+      password: "new-correct-horse-battery",
+    });
+    expect(newLogin.status).toBe(200);
+  });
+
+  it("rejects changing the password with no session", async () => {
+    // No cookies at all -- the global CSRF guard rejects this before the
+    // route's SessionGuard ever runs, which is still a correct block.
+    const res = await request(app.getHttpServer())
+      .put("/api/v1/auth/password")
+      .set(CSRF_TEST_HEADERS)
+      .send({ password: "whatever-new-password" });
+    expect(res.status).toBe(403);
+  });
+
+  it("allows /auth/google?intent=recover without a session (still 400: unconfigured in tests)", async () => {
+    // Same "not configured" guard rail as the connect flow's test above --
+    // what this actually asserts is that recovery, unlike connecting a
+    // mailbox, never demands a session first (no 401).
+    const res = await request(app.getHttpServer()).get(
+      "/api/v1/auth/google?intent=recover",
+    );
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/not configured/i);
+  });
+
+  it("finds the NovaMail user that owns a given provider identity, for recovery", async () => {
+    const { userId, accountId } = await seedSignedInUser(app, {
+      email: "recoverable@novamail.dev",
+    });
+    const prisma = app.get(PrismaService);
+    const account = await prisma.emailAccount.findUniqueOrThrow({
+      where: { id: accountId },
+      select: { provider: true, providerAccountId: true },
+    });
+
+    const auth = app.get(AuthService);
+    const found = await auth.findUserIdByProviderAccount(
+      account.provider,
+      account.providerAccountId,
+    );
+    expect(found).toBe(userId);
+
+    const notFound = await auth.findUserIdByProviderAccount(
+      account.provider,
+      "some-other-provider-account-id",
+    );
+    expect(notFound).toBeNull();
   });
 });

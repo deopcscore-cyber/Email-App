@@ -4,17 +4,19 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
+import { ApiClientError } from "@/lib/api-client";
 import { X } from "lucide-react";
 import { useOverlayScope, useShortcut } from "@/features/shortcuts/use-shortcut";
 import { popIn } from "@/lib/motion";
 import { linkAccountUrl } from "@/features/auth/api";
 import { GoogleLogo, MicrosoftLogo } from "@/features/auth/components/provider-logos";
-import { useRemoveAccount, useSession } from "@/features/auth/use-session";
+import { useChangePassword, useRemoveAccount, useSession } from "@/features/auth/use-session";
 
 const ERROR_MESSAGES: Record<string, string> = {
   cancelled: "Connecting was cancelled. Try again whenever you're ready.",
   provider: "The provider returned an error. Please try again.",
   missing_params: "The connection response was incomplete. Please try again.",
+  no_account_found: "No NovaMail account has that connected. Try the other provider, or create an account.",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -108,10 +110,83 @@ function RemoveAccountButton({ id, label }: { id: string; label: string }) {
   );
 }
 
+function ChangePasswordForm() {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const changePassword = useChangePassword();
+
+  const serverError = changePassword.error;
+  const errorMessage =
+    fieldError ??
+    (serverError instanceof ApiClientError
+      ? serverError.message
+      : serverError !== null && serverError !== undefined
+        ? "Something went wrong. Please try again."
+        : null);
+
+  function handleSubmit(e: React.FormEvent): void {
+    e.preventDefault();
+    setFieldError(null);
+    if (password.length < 8) {
+      setFieldError("At least 8 characters");
+      return;
+    }
+    if (password !== confirm) {
+      setFieldError("Passwords don't match");
+      return;
+    }
+    changePassword.mutate(
+      { password },
+      {
+        onSuccess: () => {
+          setPassword("");
+          setConfirm("");
+          toast.success("Password updated");
+        },
+      },
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2.5 sm:max-w-sm">
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="New password"
+        autoComplete="new-password"
+        className="w-full rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm outline-none transition-colors focus:border-accent/60"
+      />
+      <input
+        type="password"
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
+        placeholder="Confirm new password"
+        autoComplete="new-password"
+        className="w-full rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm outline-none transition-colors focus:border-accent/60"
+      />
+      {errorMessage !== null && (
+        <p role="alert" className="text-[12px] text-danger">
+          {errorMessage}
+        </p>
+      )}
+      <button
+        type="submit"
+        disabled={changePassword.isPending}
+        className="self-start rounded-xl bg-accent px-4 py-2 text-[13px] font-medium text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        {changePassword.isPending ? "Saving…" : "Update password"}
+      </button>
+    </form>
+  );
+}
+
 export default function AccountsSettingsPage() {
   const { data: user } = useSession();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
+  const recovered = searchParams.get("recovered") === "1";
   const errorMessage =
     error === null ? null : (ERROR_MESSAGES[error] ?? "Something went wrong connecting that account.");
 
@@ -131,6 +206,13 @@ export default function AccountsSettingsPage() {
           className="mt-4 rounded-lg border border-danger/20 bg-danger/10 px-4 py-2.5 text-[13px] text-danger"
         >
           {errorMessage}
+        </p>
+      )}
+
+      {recovered && (
+        <p className="mt-4 rounded-lg border border-accent/20 bg-accent-soft px-4 py-2.5 text-[13px] text-accent">
+          You're back in. Set a new password below so you can sign in
+          normally next time.
         </p>
       )}
 
@@ -184,6 +266,11 @@ export default function AccountsSettingsPage() {
           Connect Microsoft
         </a>
       </div>
+
+      <h2 className="mt-8 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Password
+      </h2>
+      <ChangePasswordForm />
     </div>
   );
 }

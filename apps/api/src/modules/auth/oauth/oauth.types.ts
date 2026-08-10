@@ -16,8 +16,10 @@ export interface OAuthProviderConfig {
 export interface OAuthState {
   provider: Provider;
   codeVerifier: string;
-  /** The already-authenticated user connecting this mailbox. */
-  linkToUserId: string;
+  /** The already-authenticated user connecting this mailbox. Absent when
+   * this flow is account recovery (no session exists yet) -- the callback
+   * instead looks up whichever NovaMail user already owns this identity. */
+  linkToUserId?: string;
 }
 
 /** Normalized result of a completed code exchange. */

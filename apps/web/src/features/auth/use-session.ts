@@ -3,12 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type {
+  ChangePasswordDto,
   LoginDto,
   RegisterDto,
   SessionUserDto,
   UpdateSettingsDto,
 } from "@novamail/shared";
 import {
+  changePassword,
   fetchSession,
   login,
   logout,
@@ -76,6 +78,12 @@ export function useRemoveAccount() {
           : { ...prev, accounts: prev.accounts.filter((a) => a.id !== accountId) },
       );
     },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (dto: ChangePasswordDto) => changePassword(dto),
   });
 }
 
