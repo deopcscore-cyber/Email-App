@@ -137,6 +137,37 @@ describe("Messages: drafts, send, undo (e2e)", () => {
     expect(thread.folder).toBe("SENT");
   });
 
+  it("uploads an attachment and downloads back the exact same bytes", async () => {
+    const { cookieHeader, accountId } = await seedSignedInUser(app);
+    const draft = await request(app.getHttpServer())
+      .post("/api/v1/messages/drafts")
+      .set("Cookie", cookieHeader)
+      .set(CSRF_TEST_HEADERS)
+      .send({ accountId, mode: "new", to: [], subject: "Has an attachment", bodyHtml: "" });
+
+    const original = Buffer.from("not-quite-base64-friendly bytes \x00\xff\x10", "binary");
+    const upload = await request(app.getHttpServer())
+      .post(`/api/v1/messages/${draft.body.id}/attachments`)
+      .set("Cookie", cookieHeader)
+      .set(CSRF_TEST_HEADERS)
+      .attach("file", original, { filename: "notes.bin", contentType: "application/octet-stream" });
+    expect(upload.status).toBe(201);
+    expect(upload.body.filename).toBe("notes.bin");
+    expect(upload.body.sizeBytes).toBe(original.length);
+
+    const download = await request(app.getHttpServer())
+      .get(`/api/v1/attachments/${upload.body.id}/download`)
+      .set("Cookie", cookieHeader)
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => callback(null, Buffer.concat(chunks)));
+      });
+    expect(download.status).toBe(200);
+    expect(Buffer.compare(download.body as Buffer, original)).toBe(0);
+  });
+
   it("deleting a standalone draft removes its thread too", async () => {
     const { cookieHeader, accountId } = await seedSignedInUser(app);
     const draft = await request(app.getHttpServer())
