@@ -1,12 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { Address } from "@novamail/shared";
 import { PrismaService } from "../../prisma/prisma.service";
 import { EventsService } from "../events/events.service";
 import { SyncService, isSeedAccount } from "../sync/sync.service";
 import { TokenBrokerService } from "../sync/token-broker.service";
-import { UPLOAD_DIR } from "./messages.service";
 
 /**
  * Executes queued sends when the undo window / schedule elapses. Runs in the
@@ -52,15 +49,17 @@ export class SendProcessorService {
       if (!isSeedAccount(message.account)) {
         const provider = this.sync.providerFor(message.account);
         const accessToken = await this.broker.accessTokenFor(message.accountId);
-        const attachments = await Promise.all(
-          message.attachments
-            .filter((a) => a.storageKey !== null)
-            .map(async (a) => ({
-              filename: a.filename,
-              mimeType: a.mimeType,
-              content: await readFile(join(UPLOAD_DIR, a.storageKey as string)),
-            })),
-        );
+        const attachments = message.attachments
+          .filter((a) => a.content !== null)
+          .map((a) => ({
+            filename: a.filename,
+            mimeType: a.mimeType,
+            // Prisma returns Bytes columns as a plain Uint8Array, not a real
+            // Buffer -- callers below rely on Buffer-only methods like
+            // .toString("base64"), which silently mis-encodes on a bare
+            // Uint8Array instead of throwing.
+            content: Buffer.from(a.content as Uint8Array),
+          }));
         // Without In-Reply-To/References, the recipient's client has no way
         // to match this against the original and threads it as a new email.
         let inReplyTo: string | undefined;

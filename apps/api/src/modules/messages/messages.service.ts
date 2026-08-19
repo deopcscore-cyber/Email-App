@@ -6,8 +6,6 @@ import {
 } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import type {
   Address,
   CreateDraftDto,
@@ -18,7 +16,6 @@ import type {
 import { QueueService } from "../../jobs/queue.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "var", "uploads");
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 type DraftWithAttachments = Prisma.MessageGetPayload<{
@@ -247,17 +244,13 @@ export class MessagesService {
     }
     const draft = await this.ownedDraft(userId, draftId);
 
-    await mkdir(UPLOAD_DIR, { recursive: true });
-    const storageKey = `${randomUUID()}-${file.originalname.replace(/[^\w.\-]/g, "_")}`;
-    await writeFile(join(UPLOAD_DIR, storageKey), file.buffer);
-
     const attachment = await this.prisma.attachment.create({
       data: {
         messageId: draft.id,
         filename: file.originalname,
         mimeType: file.mimetype,
         sizeBytes: file.size,
-        storageKey,
+        content: Uint8Array.from(file.buffer),
       },
     });
     await this.prisma.thread.update({
@@ -282,9 +275,6 @@ export class MessagesService {
       where: { id: attachmentId, messageId: draft.id },
     });
     if (attachment === null) throw new NotFoundException("Attachment not found");
-    if (attachment.storageKey !== null) {
-      await unlink(join(UPLOAD_DIR, attachment.storageKey)).catch(() => undefined);
-    }
     await this.prisma.attachment.delete({ where: { id: attachmentId } });
   }
 
@@ -306,5 +296,3 @@ export class MessagesService {
     return draft;
   }
 }
-
-export { UPLOAD_DIR };

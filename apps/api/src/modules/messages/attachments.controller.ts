@@ -8,8 +8,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type { Response } from "express";
-import { createReadStream } from "node:fs";
-import { join } from "node:path";
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -18,7 +16,6 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { SessionGuard } from "../auth/guards/session.guard";
 import { SyncService, isSeedAccount } from "../sync/sync.service";
 import { TokenBrokerService } from "../sync/token-broker.service";
-import { UPLOAD_DIR } from "./messages.service";
 
 @Controller("attachments")
 @UseGuards(SessionGuard)
@@ -51,8 +48,8 @@ export class AttachmentsController {
       `${disposition === "inline" ? "inline" : "attachment"}; filename="${encodeURIComponent(attachment.filename)}"`,
     );
 
-    if (attachment.storageKey !== null) {
-      createReadStream(join(UPLOAD_DIR, attachment.storageKey)).pipe(res);
+    if (attachment.content !== null) {
+      res.end(attachment.content);
       return;
     }
 

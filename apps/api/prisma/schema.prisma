@@ -264,7 +264,13 @@ model Attachment {
   filename             String
   mimeType             String
   sizeBytes            Int
-  storageKey           String?
+  // Bytes of a user-composed draft's upload, stored in Postgres rather than
+  // on local disk -- the API and worker run as separate containers with no
+  // shared filesystem, so a file written by one is invisible to the other
+  // (and gone entirely after either container restarts). Null for synced
+  // mail attachments, fetched on demand from the provider via
+  // providerAttachmentId instead.
+  content              Bytes?
   isInline             Boolean @default(false)
   contentId            String?
 
